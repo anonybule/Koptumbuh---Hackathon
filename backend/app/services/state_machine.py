@@ -214,7 +214,20 @@ async def commit_transaction(parsing: ParsingPesan, pesan: PesanMasuk, user: Pen
     )
     db.add(konfirmasi)
 
-    # 5. Update statuses
+    # 5. Provenance: link TX → WhatsApp pesan/parsing
+    from app.services.provenance import insert_sumber
+
+    await insert_sumber(
+        db,
+        transaksi_sample_id=tx_id,
+        koperasi_ref=koperasi_ref,
+        sumber="WHATSAPP",
+        pesan_id=pesan.pesan_id,
+        parsing_id=parsing.parsing_id,
+        pengguna_id=user.pengguna_id,
+    )
+
+    # 6. Update statuses
     parsing.status = "VALID"
     pesan.status = "CONFIRMED"
     pesan.processed_at = datetime.utcnow()

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'outbox_service.dart';
 
 class ApiService {
   static const String _accessKey = 'koptumbuh_access_token';
@@ -166,14 +167,28 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>?> post(String path, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>?> post(
+    String path,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+  }) async {
     try {
-      final res = await _dio.post(path, data: body);
+      final res = await _dio.post(
+        path,
+        data: body,
+        options: headers != null ? Options(headers: headers) : null,
+      );
       if (res.statusCode == 200 || res.statusCode == 201) {
         return Map<String, dynamic>.from(res.data as Map);
       }
       return null;
     } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.sendTimeout) {
+        return {'_offline': true, 'success': false};
+      }
       if (e.response?.data is Map) {
         return Map<String, dynamic>.from(e.response!.data as Map);
       }
@@ -213,8 +228,33 @@ class ApiService {
 
   Future<Map<String, dynamic>?> getTransaction(String id) => get('/mobile/transactions/$id');
 
-  Future<Map<String, dynamic>?> createTransaction(Map<String, dynamic> body) =>
-      post('/mobile/transactions', body);
+  Future<Map<String, dynamic>?> createTransaction(
+    Map<String, dynamic> body, {
+    String? clientTxId,
+    bool enqueueOnFailure = true,
+  }) async {
+    final id = clientTxId ??
+        'MOB-${DateTime.now().millisecondsSinceEpoch}-${body.hashCode.abs()}';
+    final payload = Map<String, dynamic>.from(body);
+    payload['client_tx_id'] = id;
+    final res = await post(
+      '/mobile/transactions',
+      payload,
+      headers: {'Idempotency-Key': id},
+    );
+    if (res != null && res['success'] == true) return res;
+    if (enqueueOnFailure && res != null && res['_offline'] == true) {
+      final outbox = OutboxService(this);
+      await outbox.enqueue(payload, clientTxId: id);
+      return {'_queued': true, 'success': false, 'client_tx_id': id};
+    }
+    if (enqueueOnFailure && res == null) {
+      final outbox = OutboxService(this);
+      await outbox.enqueue(payload, clientTxId: id);
+      return {'_queued': true, 'success': false, 'client_tx_id': id};
+    }
+    return res;
+  }
 
   Future<Map<String, dynamic>?> listProducts({String? q, int page = 1}) =>
       get('/mobile/products', query: {'page': page, if (q != null && q.isNotEmpty) 'q': q});

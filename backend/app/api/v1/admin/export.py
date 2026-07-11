@@ -3,7 +3,7 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.database import get_db
-from app.api.deps import require_admin
+from app.api.deps import require_admin, require_operator
 from app.schemas.common import ApiResponse, paginate, offset_limit
 from app.config import settings
 from app.services.export_service import generate_simkopdes_export, build_export_file
@@ -179,4 +179,117 @@ async def export_download(id: str, user: dict = Depends(require_admin), db: Asyn
         content=content,
         media_type=content_type,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/export/mappings", response_model=ApiResponse)
+async def list_export_mappings(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=100),
+    status: str | None = Query(None, description="EXPORTED | SYNCED | PENDING"),
+    user: dict = Depends(require_operator),
+    db: AsyncSession = Depends(get_db),
+):
+    """SIMKOPDES mapping trail — EXPORTED after file gen; SYNCED = simulated Dinas accept."""
+    ref = user["koperasi_ref"]
+    offset, limit = offset_limit(page, per_page)
+    where = ["koperasi_ref=:r", "local_table='transaksi_penjualan'"]
+    params: dict = {"r": ref, "off": offset, "lim": limit}
+    if status:
+        where.append("mapping_status=:st")
+        params["st"] = status
+    clause = " AND ".join(where)
+    total = (
+        await db.execute(
+            text(f"SELECT COUNT(*) FROM koptumbuh.mapping_integrasi WHERE {clause}"),
+            params,
+        )
+    ).scalar() or 0
+    result = await db.execute(
+        text(
+            f"SELECT mapping_id, local_id, external_table, external_reference, "
+            f"mapping_status, last_exported_at, created_at, updated_at "
+            f"FROM koptumbuh.mapping_integrasi WHERE {clause} "
+            f"ORDER BY COALESCE(last_exported_at, created_at) DESC NULLS LAST "
+            f"OFFSET :off LIMIT :lim"
+        ),
+        params,
+    )
+    return ApiResponse(
+        data=[
+            {
+                "id": str(r[0]),
+                "transaksi_sample_id": r[1],
+                "external_table": r[2],
+                "ekspor_id": r[3],
+                "status": r[4],
+                "last_exported_at": str(r[5]) if r[5] else None,
+                "created_at": str(r[6]) if r[6] else None,
+                "updated_at": str(r[7]) if r[7] else None,
+            }
+            for r in result.fetchall()
+        ],
+        meta=paginate(page, per_page, total),
+    )
+
+
+@router.post("/export/mappings/{mapping_id}/accept", response_model=ApiResponse)
+async def accept_export_mapping(
+    mapping_id: str,
+    user: dict = Depends(require_operator),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Mark mapping as SYNCED — simulated Dinas/SIMKOPDES acceptance (not a live gov writeback).
+    """
+    result = await db.execute(
+        text(
+            "UPDATE koptumbuh.mapping_integrasi "
+            "SET mapping_status='SYNCED', updated_at=NOW() "
+            "WHERE mapping_id=:id AND koperasi_ref=:r AND mapping_status='EXPORTED' "
+            "RETURNING mapping_id, local_id, mapping_status"
+        ),
+        {"id": mapping_id, "r": user["koperasi_ref"]},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(
+            status_code=404,
+            detail="Mapping not found or not in EXPORTED status",
+        )
+    await db.commit()
+    return ApiResponse(
+        data={
+            "id": str(row[0]),
+            "transaksi_sample_id": row[1],
+            "status": row[2],
+            "note": "Simulasi penerimaan Dinas — bukan writeback live ke SIMKOPDES",
+        }
+    )
+
+
+@router.post("/export/mappings/accept-all", response_model=ApiResponse)
+async def accept_all_exported(
+    user: dict = Depends(require_operator),
+    db: AsyncSession = Depends(get_db),
+):
+    """Bulk mark all EXPORTED mappings as SYNCED (demo acceptance)."""
+    result = await db.execute(
+        text(
+            "UPDATE koptumbuh.mapping_integrasi "
+            "SET mapping_status='SYNCED', updated_at=NOW() "
+            "WHERE koperasi_ref=:r AND mapping_status='EXPORTED' "
+            "AND local_table='transaksi_penjualan' "
+            "RETURNING mapping_id"
+        ),
+        {"r": user["koperasi_ref"]},
+    )
+    ids = [str(r[0]) for r in result.fetchall()]
+    await db.commit()
+    return ApiResponse(
+        data={
+            "accepted_count": len(ids),
+            "ids": ids,
+            "note": "Simulasi penerimaan Dinas — bukan writeback live ke SIMKOPDES",
+        }
     )

@@ -9,6 +9,7 @@ interface Transaction {
   status: string;
   method: string;
   date: string;
+  sumber?: string | null;
 }
 
 export default function TransactionsPage() {
@@ -35,9 +36,10 @@ export default function TransactionsPage() {
               <th className="text-left p-3 font-medium">ID</th>
               <th className="text-left p-3 font-medium">Pelanggan</th>
               <th className="text-right p-3 font-medium">Total</th>
-              <th className="text-left p-3 font-medium">Bayar</th>
-              <th className="text-left p-3 font-medium">Status</th>
-              <th className="text-left p-3 font-medium">Tanggal</th>
+                <th className="text-left p-3 font-medium">Bayar</th>
+                <th className="text-left p-3 font-medium">Sumber</th>
+                <th className="text-left p-3 font-medium">Status</th>
+                <th className="text-left p-3 font-medium">Tanggal</th>
             </tr>
           </thead>
           <tbody>
@@ -47,6 +49,7 @@ export default function TransactionsPage() {
                 <td className="p-3 font-medium">{t.customer || 'Umum'}</td>
                 <td className="p-3 text-right font-semibold">Rp {(t.total || 0).toLocaleString('id-ID')}</td>
                 <td className="p-3">{t.method}</td>
+                <td className="p-3 text-xs text-gray-600">{t.sumber || '—'}</td>
                 <td className="p-3">
                   <span className={`px-2 py-1 rounded-full text-xs ${
                     t.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'

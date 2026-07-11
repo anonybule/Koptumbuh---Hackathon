@@ -1,6 +1,7 @@
+"""In-store POS — Path B fallback with idempotency + provenance."""
 import uuid
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -8,6 +9,7 @@ from app.database import get_db
 from app.api.deps import require_operator
 from app.schemas.common import ApiResponse
 from app.services.normalize import normalize_payment
+from app.services.provenance import find_tx_by_client_id, insert_sumber, fetch_tx_summary
 
 router = APIRouter(prefix="/admin", tags=["admin-pos"])
 
@@ -22,6 +24,7 @@ class CreatePosTransactionBody(BaseModel):
     payment_method: str = "Cash"
     line_items: list[LineItem]
     tanggal_dibuat: datetime | None = None
+    client_tx_id: str | None = None
 
 
 @router.post("/pos/transactions", response_model=ApiResponse)
@@ -29,12 +32,20 @@ async def create_pos_transaction(
     body: CreatePosTransactionBody,
     user: dict = Depends(require_operator),
     db: AsyncSession = Depends(get_db),
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
 ):
     """In-store POS sale — same stock/price logic as mobile POST /transactions."""
     if not body.line_items:
         raise HTTPException(status_code=400, detail="line_items required")
 
     ref = user["koperasi_ref"]
+    client_tx_id = (idempotency_key or body.client_tx_id or "").strip() or None
+    if client_tx_id:
+        existing = await find_tx_by_client_id(db, ref, client_tx_id)
+        if existing:
+            summary = await fetch_tx_summary(db, existing, ref)
+            return ApiResponse(data=summary or {"id": existing, "transaksi_sample_id": existing})
+
     payment = normalize_payment(body.payment_method)
     tx_status = "Unpaid" if payment == "Hutang" else "Paid"
     tx_id = f"TRX-{uuid.uuid4().hex[:12].upper()}"
@@ -134,6 +145,14 @@ async def create_pos_transaction(
             {"qty": r["quantity"], "pid": r["produk_sample_id"], "ref": ref},
         )
 
+    await insert_sumber(
+        db,
+        transaksi_sample_id=tx_id,
+        koperasi_ref=ref,
+        sumber="POS",
+        pengguna_id=user.get("pengguna_id"),
+        client_tx_id=client_tx_id,
+    )
     await db.commit()
     return ApiResponse(
         data={
@@ -143,5 +162,6 @@ async def create_pos_transaction(
             "total": total,
             "payment_method": payment,
             "line_items": resolved,
+            "client_tx_id": client_tx_id,
         }
     )

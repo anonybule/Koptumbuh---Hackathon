@@ -41,7 +41,8 @@ If no confirmation in ~15s → **switch to Path B immediately**. Don’t debug E
 | 1 | “Same ledger without WhatsApp — POS fallback.” | Open **/pos** |
 | 2 | “One click demo sale — prices from DB.” | Click **Demo 1-klik** (lihat harga unit di daftar produk) |
 | 3 | “Stock decremented, TX stored.” | Click link to **Dashboard** → Refresh |
-| 4 | “SIMKOPDES export ready.” | Optional **/export** |
+| 4 | “SIMKOPDES export + acceptance trail.” | **/export** → Ekspor → **Tandai diterima** (simulasi Dinas) |
+| 5 | Optional | **/tinjau** for pending WA drafts; Transaksi shows **Sumber** |
 
 Script alternative (terminal visible to judges):
 

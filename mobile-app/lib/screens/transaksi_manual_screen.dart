@@ -37,6 +37,11 @@ class _TransaksiManualScreenState extends State<TransaksiManualScreen> {
     if (res != null && res['success'] == true) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaksi berhasil dicatat')));
       Navigator.pop(context);
+    } else if (res != null && res['_queued'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Offline — transaksi masuk antrian, akan dikirim saat online')),
+      );
+      Navigator.pop(context);
     } else {
       setState(() => _error = '${res?['error']?['message'] ?? res?['detail'] ?? res?['message'] ?? 'Gagal menyimpan transaksi'}');
     }

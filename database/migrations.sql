@@ -305,3 +305,28 @@ INSERT INTO koptumbuh.harga_pasar (
     ('PROD-C3D4E5F6A1B2', 'Gula Pasir 1kg', 15500, 'Pasar Jonggol', 'PASAR', 'KAB. BOGOR', 'demo_seed', NOW() + INTERVAL '14 days'),
     ('PROD-D4E5F6A1B2C3', 'Telur Ayam 1kg', 29000, 'Pasar Jonggol', 'PASAR', 'KAB. BOGOR', 'demo_seed', NOW() + INTERVAL '14 days'),
     ('PROD-E5F6A1B2C3D4', 'Mie Instan Dus', 55000, 'Grosir Bogor', 'WARUNG', 'KAB. BOGOR', 'demo_seed', NOW() + INTERVAL '14 days');
+
+-- ============================================
+-- Transaction provenance + offline idempotency
+-- ============================================
+CREATE TABLE IF NOT EXISTS koptumbuh.transaksi_sumber (
+    transaksi_sample_id TEXT PRIMARY KEY
+        REFERENCES koptumbuh.transaksi_penjualan(transaksi_sample_id) ON DELETE CASCADE,
+    koperasi_ref TEXT NOT NULL
+        REFERENCES koptumbuh.referensi_koperasi_wilayah(koperasi_ref),
+    sumber TEXT NOT NULL
+        CHECK (sumber IN ('WHATSAPP','POS','MOBILE','TINJAU')),
+    pesan_id UUID REFERENCES koptumbuh.pesan_masuk(pesan_id),
+    parsing_id UUID REFERENCES koptumbuh.parsing_pesan(parsing_id),
+    pengguna_id UUID REFERENCES koptumbuh.pengguna_koptumbuh(pengguna_id),
+    client_tx_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_transaksi_sumber_client
+    ON koptumbuh.transaksi_sumber (koperasi_ref, client_tx_id)
+    WHERE client_tx_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_transaksi_sumber_pesan
+    ON koptumbuh.transaksi_sumber (pesan_id)
+    WHERE pesan_id IS NOT NULL;

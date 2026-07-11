@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/outbox_service.dart';
 import '../widgets/app_widgets.dart';
 import 'transaksi_manual_screen.dart';
 import 'members_search_screen.dart';
@@ -74,6 +75,12 @@ class _BerandaScreenState extends State<BerandaScreen> {
   }
 
   Future<void> _fetchData() async {
+    final flush = await OutboxService(widget.api).flush();
+    if (flush.ok > 0 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${flush.ok} transaksi offline tersinkron')),
+      );
+    }
     final data = await widget.api.dashboardSummary();
     if (!mounted) return;
     if (data != null && data['success'] == true) {

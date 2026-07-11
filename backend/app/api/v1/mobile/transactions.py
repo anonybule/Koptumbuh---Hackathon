@@ -1,13 +1,14 @@
 import uuid
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text, select
+from sqlalchemy import text
 from app.database import get_db
-from app.api.deps import get_current_user, require_operator, require_admin
+from app.api.deps import require_operator
 from app.schemas.common import ApiResponse, paginate, offset_limit
-from app.services.normalize import normalize_payment, normalize_unit
+from app.services.normalize import normalize_payment
+from app.services.provenance import find_tx_by_client_id, insert_sumber, fetch_tx_summary
 
 router = APIRouter(prefix="/mobile", tags=["mobile"])
 
@@ -22,6 +23,7 @@ class CreateTransactionBody(BaseModel):
     payment_method: str = "Cash"
     line_items: list[LineItem]
     tanggal_dibuat: datetime | None = None
+    client_tx_id: str | None = None
 
 
 @router.get("/transactions", response_model=ApiResponse)
@@ -105,6 +107,14 @@ async def get_transaction(
         {"id": tx_id, "ref": ref},
     )).fetchall()
 
+    sumber = (await db.execute(
+        text(
+            "SELECT sumber, pesan_id, parsing_id, client_tx_id "
+            "FROM koptumbuh.transaksi_sumber WHERE transaksi_sample_id=:id"
+        ),
+        {"id": tx_id},
+    )).fetchone()
+
     return ApiResponse(data={
         "id": tx[0],
         "customer": tx[1],
@@ -122,6 +132,12 @@ async def get_transaction(
             }
             for i in items
         ],
+        "sumber": None if not sumber else {
+            "channel": sumber[0],
+            "pesan_id": str(sumber[1]) if sumber[1] else None,
+            "parsing_id": str(sumber[2]) if sumber[2] else None,
+            "client_tx_id": sumber[3],
+        },
     })
 
 
@@ -130,12 +146,21 @@ async def create_transaction(
     body: CreateTransactionBody,
     user: dict = Depends(require_operator),
     db: AsyncSession = Depends(get_db),
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
 ):
     if not body.line_items:
         raise HTTPException(status_code=400, detail="line_items required")
 
     ref = user["koperasi_ref"]
+    client_tx_id = (idempotency_key or body.client_tx_id or "").strip() or None
+    if client_tx_id:
+        existing = await find_tx_by_client_id(db, ref, client_tx_id)
+        if existing:
+            summary = await fetch_tx_summary(db, existing, ref)
+            return ApiResponse(data=summary or {"id": existing, "transaksi_sample_id": existing})
+
     payment = normalize_payment(body.payment_method)
+    tx_status = "Unpaid" if payment == "Hutang" else "Paid"
     tx_id = f"TRX-{uuid.uuid4().hex[:12].upper()}"
     now = body.tanggal_dibuat or datetime.utcnow()
     resolved: list[dict] = []
@@ -184,7 +209,7 @@ async def create_transaction(
             "INSERT INTO koptumbuh.transaksi_penjualan "
             "(transaksi_sample_id, koperasi_ref, nama_pelanggan, tanggal_dibuat, "
             " total_pembayaran, status_transaksi, metode_pembayaran) "
-            "VALUES (:id, :ref, :nama, :tgl, :total, 'Paid', :pay)"
+            "VALUES (:id, :ref, :nama, :tgl, :total, :st, :pay)"
         ),
         {
             "id": tx_id,
@@ -192,6 +217,7 @@ async def create_transaction(
             "nama": body.customer_name,
             "tgl": now,
             "total": total,
+            "st": tx_status,
             "pay": payment,
         },
     )
@@ -202,7 +228,7 @@ async def create_transaction(
                 "INSERT INTO koptumbuh.barang_keluar_produk "
                 "(transaksi_sample_id, produk_sample_id, koperasi_ref, kode_barcode, "
                 " tanggal_keluar, nama_produk, jumlah_keluar, harga, total_nilai, status_transaksi) "
-                "VALUES (:tx, :pid, :ref, :barcode, :tgl, :nama, :qty, :harga, :total, 'Paid')"
+                "VALUES (:tx, :pid, :ref, :barcode, :tgl, :nama, :qty, :harga, :total, :st)"
             ),
             {
                 "tx": tx_id,
@@ -214,6 +240,7 @@ async def create_transaction(
                 "qty": r["quantity"],
                 "harga": r["harga"],
                 "total": r["total"],
+                "st": tx_status,
             },
         )
         await db.execute(
@@ -225,6 +252,14 @@ async def create_transaction(
             {"qty": r["quantity"], "pid": r["produk_sample_id"], "ref": ref},
         )
 
+    await insert_sumber(
+        db,
+        transaksi_sample_id=tx_id,
+        koperasi_ref=ref,
+        sumber="MOBILE",
+        pengguna_id=user.get("pengguna_id"),
+        client_tx_id=client_tx_id,
+    )
     await db.commit()
     return ApiResponse(data={
         "id": tx_id,
@@ -232,4 +267,5 @@ async def create_transaction(
         "total": total,
         "payment_method": payment,
         "line_items": resolved,
+        "client_tx_id": client_tx_id,
     })

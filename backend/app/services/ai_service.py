@@ -115,21 +115,27 @@ async def ocr_receipt(image_bytes: bytes, mime_type: str) -> dict:
 
     image_config = types.GenerateContentConfig(
         temperature=0.0,
-        max_output_tokens=1000,
+        max_output_tokens=2500,
         response_mime_type="application/json",
         response_schema=EXTRACTION_SCHEMA,
         system_instruction=(
-            "Ekstrak SEMUA produk, jumlah, dan harga yang terlihat di foto ini. "
-            "intent biasanya RECORD_RECEIPT (struk pembelian/barang masuk) atau RECORD_SALE. "
-            "JANGAN menghitung total. Bahasa Indonesia. "
-            "Set confidence_score rendah (<0.7) jika gambar buram atau teks tidak terbaca."
+            "Ekstrak SEMUA baris produk dari foto ini — struk, nota, ATAU daftar tulisan tangan di buku/notebook. "
+            "Setiap baris terpisah = satu line_item (product_name, quantity, unit). "
+            "Contoh notebook: 'Beras 5kg x2', 'Minyak 2L 3 botol', 'Gula 1kg' → beberapa line_items. "
+            "intent: RECORD_RECEIPT (barang masuk/struk beli) atau RECORD_SALE (daftar penjualan). "
+            "JANGAN menghitung total harga — harga dari DB (No AI Math). "
+            "Jika unit tidak jelas, gunakan 'pcs'. Bahasa Indonesia. "
+            "Set confidence_score rendah (<0.7) jika buram, coretan tidak terbaca, atau hanya sebagian baris jelas."
         ),
     )
     try:
         part = types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
         response = _get_client().models.generate_content(
             model=settings.GEMINI_MODEL,
-            contents=[part, "Ekstrak semua item yang terlihat."],
+            contents=[
+                part,
+                "Ekstrak SEMUA baris item (termasuk daftar notebook multi-baris). Jangan gabungkan baris.",
+            ],
             config=image_config,
         )
         return json.loads(response.text)

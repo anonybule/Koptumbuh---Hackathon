@@ -165,6 +165,27 @@ async def generate_simkopdes_export(
                 "err": error_detail,
             },
         )
+        # Mark each exported TX in mapping_integrasi (SIMKOPDES acceptance trail)
+        if status == "SUCCESS" and rows:
+            for row in rows:
+                await db.execute(
+                    text(
+                        "INSERT INTO koptumbuh.mapping_integrasi "
+                        "(koperasi_ref, entity_type, local_table, local_id, external_table, "
+                        " external_reference, mapping_status, last_exported_at, updated_at) "
+                        "VALUES (:r, 'TRANSAKSI', 'transaksi_penjualan', :tx, 'SIMKOPDES_TRANSAKSI', "
+                        " :eref, 'EXPORTED', NOW(), NOW()) "
+                        "ON CONFLICT (koperasi_ref, local_table, local_id, external_table) "
+                        "DO UPDATE SET mapping_status='EXPORTED', "
+                        "  external_reference=EXCLUDED.external_reference, "
+                        "  last_exported_at=NOW(), updated_at=NOW()"
+                    ),
+                    {
+                        "r": koperasi_ref,
+                        "tx": row["transaksi_sample_id"],
+                        "eref": ekspor_id,
+                    },
+                )
         await db.commit()
         results.append(
             {

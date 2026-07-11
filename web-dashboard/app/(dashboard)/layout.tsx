@@ -7,7 +7,7 @@ import {
   LayoutDashboard, ShoppingCart, Package, Truck, Users, Building2,
   Landmark, BarChart3, LogOut, Menu, BookOpen, Bell,
   Lightbulb, Download, UserCog, MapPin, Receipt, Wallet, FileText, Settings,
-  PanelLeftClose, PanelLeftOpen, X, HeartHandshake, MessageSquare, Bot,
+  PanelLeftClose, PanelLeftOpen, X, HeartHandshake, MessageSquare, Bot, ClipboardCheck,
 } from 'lucide-react';
 import { clearTokens } from '../../lib/api';
 
@@ -18,6 +18,7 @@ const navItems = [
   { href: '/chathub', label: 'ChatHub', icon: MessageSquare },
   { href: '/automations', label: 'Automasi', icon: Bot },
   { href: '/pos', label: 'POS Kasir', icon: ShoppingCart },
+  { href: '/tinjau', label: 'Tinjau', icon: ClipboardCheck },
   { href: '/transactions', label: 'Transaksi', icon: Receipt },
   { href: '/inventory', label: 'Inventaris', icon: Package },
   { href: '/supply', label: 'Supply', icon: Truck },

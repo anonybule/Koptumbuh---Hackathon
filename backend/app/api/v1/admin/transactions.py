@@ -21,31 +21,36 @@ async def list_transactions(
 ):
     ref = user["koperasi_ref"]
     offset, limit = offset_limit(page, per_page)
-    where = ["koperasi_ref=:r"]
+    where = ["t.koperasi_ref=:r"]
     params: dict = {"r": ref, "off": offset, "lim": limit}
     if status:
-        where.append("status_transaksi=:st")
+        where.append("t.status_transaksi=:st")
         params["st"] = status
     if date_from:
-        where.append("COALESCE(tanggal_dibuat, dibuat_pada)::date >= :df")
+        where.append("COALESCE(t.tanggal_dibuat, t.dibuat_pada)::date >= :df")
         params["df"] = date_from
     if date_to:
-        where.append("COALESCE(tanggal_dibuat, dibuat_pada)::date <= :dt")
+        where.append("COALESCE(t.tanggal_dibuat, t.dibuat_pada)::date <= :dt")
         params["dt"] = date_to
     if q:
-        where.append("(nama_pelanggan ILIKE :q OR transaksi_sample_id ILIKE :q)")
+        where.append("(t.nama_pelanggan ILIKE :q OR t.transaksi_sample_id ILIKE :q)")
         params["q"] = f"%{q}%"
     clause = " AND ".join(where)
 
     total = (
-        await db.execute(text(f"SELECT COUNT(*) FROM koptumbuh.transaksi_penjualan WHERE {clause}"), params)
+        await db.execute(
+            text(f"SELECT COUNT(*) FROM koptumbuh.transaksi_penjualan t WHERE {clause}"),
+            params,
+        )
     ).scalar() or 0
     result = await db.execute(
         text(
-            f"SELECT transaksi_sample_id, nama_pelanggan, total_pembayaran, status_transaksi, "
-            f"metode_pembayaran, tanggal_dibuat "
-            f"FROM koptumbuh.transaksi_penjualan WHERE {clause} "
-            f"ORDER BY tanggal_dibuat DESC NULLS LAST OFFSET :off LIMIT :lim"
+            f"SELECT t.transaksi_sample_id, t.nama_pelanggan, t.total_pembayaran, t.status_transaksi, "
+            f"t.metode_pembayaran, t.tanggal_dibuat, s.sumber, s.pesan_id "
+            f"FROM koptumbuh.transaksi_penjualan t "
+            f"LEFT JOIN koptumbuh.transaksi_sumber s ON s.transaksi_sample_id = t.transaksi_sample_id "
+            f"WHERE {clause} "
+            f"ORDER BY t.tanggal_dibuat DESC NULLS LAST OFFSET :off LIMIT :lim"
         ),
         params,
     )
@@ -58,6 +63,8 @@ async def list_transactions(
                 "status": r[3],
                 "method": r[4],
                 "date": str(r[5]) if r[5] else None,
+                "sumber": r[6],
+                "pesan_id": str(r[7]) if r[7] else None,
             }
             for r in result.fetchall()
         ],
