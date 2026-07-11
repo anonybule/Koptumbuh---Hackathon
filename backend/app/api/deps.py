@@ -20,7 +20,7 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Validate JWT, load user from DB, reject inactive accounts."""
+    """Validate JWT, return mock user (demo mode — no DB)."""
     token = credentials.credentials
     try:
         payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
@@ -30,22 +30,13 @@ async def get_current_user(
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
-    try:
-        uid = UUID(pengguna_id)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-
-    result = await db.execute(select(PenggunaKoptumbuh).where(PenggunaKoptumbuh.pengguna_id == uid))
-    user = result.scalar_one_or_none()
-    if not user or not user.status_aktif:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User inactive or not found")
-
+    # Demo mode: skip DB lookup, use claims from token
     return {
-        "pengguna_id": str(user.pengguna_id),
-        "role": user.role,
-        "koperasi_ref": user.koperasi_ref,
-        "nama": user.nama,
-        "nomor_whatsapp": user.nomor_whatsapp,
+        "pengguna_id": pengguna_id,
+        "role": payload.get("role", "ADMIN"),
+        "koperasi_ref": payload.get("koperasi_ref", "KOP-JasaAI-A1B2C3D4E5F6"),
+        "nama": "Demo User",
+        "nomor_whatsapp": "628123456003",
         "anggota_ref": None,
     }
 
