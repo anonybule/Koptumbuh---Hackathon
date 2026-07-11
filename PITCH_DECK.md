@@ -2,16 +2,18 @@
 
 ## WhatsApp-First Cooperative Operations for Indonesia's 180,000 Village Cooperatives
 
+**Team:** JasaAI · **Product:** KopTumbuh · **Tagline:** *Dari desa, untuk Indonesia.*
+
 ---
 
 ## Slide 1: The Problem
 
 ### Indonesia's village cooperatives are stuck on paper.
 
-- **180,000+ koperasi desa** serve as the economic backbone of rural Indonesia, managing daily essentials, savings, and loans for millions of members.
-- Most operators run transactions **on paper or basic POS systems** — inventory counts are weeks out of date, pricing is gut-feel, and government SIMKOPDES reports are a painful monthly chore.
-- **Members are disengaged** — they have no easy way to check their savings, get pricing, or communicate with their cooperative.
-- **Stockouts and bad margins** eat into already-thin cooperative surpluses because nobody has real-time data.
+- **180,000+ koperasi desa** serve as the economic backbone of rural Indonesia — daily essentials, savings, and loans for millions of members.
+- Most operators run on **paper or basic POS** — inventory is weeks out of date, pricing is gut-feel, and SIMKOPDES reporting is a painful monthly chore.
+- **Members are disengaged** — no easy way to check savings, prices, or talk to the cooperative.
+- **Stockouts and bad margins** eat thin surpluses because nobody has real-time data.
 
 ### The operators already live in WhatsApp. The system they need should too.
 
@@ -21,20 +23,20 @@
 
 ### KopTumbuh — "Koperasi Tumbuh" (Growing Cooperative)
 
-**A WhatsApp-first cooperative operations platform.** No app to install. No new workflow to learn.
+**A WhatsApp-first cooperative operations platform.** No app to install for the core workflow. No new habit to learn.
 
-An operator sends a chat — text, voice note, or photo of a receipt — and KopTumbuh's AI parses it into a structured transaction, confirms with a simple reply, and commits it to the ledger while updating inventory in real time.
+An operator sends a chat — text, voice note, or photo of a receipt — and KopTumbuh's AI parses it into a structured draft, confirms with a simple reply, and only then commits to the ledger while updating inventory.
 
 ```
 Operator: "Bu Siti beli 2 Beras Premium 5kg, bayar tunai"
         ↓
-   KopTumbuh AI parses the message
+   Gemini extracts intent + line items (not prices)
         ↓
-   WhatsApp reply: "Konfirmasi: Beras Premium 5kg x2 @Rp75.000. Total: Rp150.000. Balas YA/UBAH/BATAL"
+   WhatsApp: "Konfirmasi… Total Rp … Balas YA / UBAH / BATAL"
         ↓
 Operator: "YA"
         ↓
-   Transaction committed. Stock updated. Member notified.
+   transaksi_penjualan + barang_keluar + inventaris updated
 ```
 
 **One message. One confirmation. Done.**
@@ -45,149 +47,129 @@ Operator: "YA"
 
 | Barrier | WhatsApp-First Approach |
 |---------|-------------------------|
-| App installation | None required — operators already use WhatsApp daily |
-| Training | No new interface — it's just chat |
-| Internet costs | WhatsApp works on 2G, uses minimal data |
-| Device requirements | Any phone that runs WhatsApp (even entry-level) |
-| Adoption speed | Instant — no rollout, no classroom training |
+| App installation | None for core recording — operators already use WhatsApp daily |
+| Training | No new UI — it's chat |
+| Internet costs | Works on low bandwidth; minimal data |
+| Device requirements | Any phone that runs WhatsApp |
+| Adoption speed | Instant — no classroom rollout |
 | Member access | Members already message their cooperative on WhatsApp |
 
-**WhatsApp has 90M+ daily active users in Indonesia.** It is the country's de facto operating system for communication and commerce.
+**WhatsApp has 90M+ daily active users in Indonesia** — the country's de facto OS for communication and commerce.
 
 ---
 
-## Slide 4: The Full Platform
+## Slide 4: The Full Platform (MVP)
 
-KopTumbuh is not just a WhatsApp bot — it's a **three-platform system** covering every cooperative touchpoint:
+KopTumbuh is a **three-surface system** on one REST API:
 
-### WhatsApp Bot (Operator Interface)
-- Text, voice, and photo receipt → AI parsing → confirmation → ledger
-- Stock checks, price lookups, member inquiries all via chat
-- Automated broadcasts: daily prices, low-stock alerts, member milestones
+### WhatsApp (operator primary)
+- Text / voice / photo → AI parse → **YA / UBAH / BATAL** → ledger
+- Intent branching: sale, restock draft, stock adjust, knowledge Q&A
+- Scheduled automations: price broadcast, restock recs, RFM winback / onboarding
 
-### Web Dashboard (Management Interface)
-- **25+ pages** of analytics, inventory, supply chain, members, finance
-- Real-time dashboards with sales trends, top products, stock reconciliation
-- Export to SIMKOPDES-compatible CSV/XLSX/JSON
-- Multi-cooperative oversight for federations
+### Web dashboard (management)
+- **~23 live pages**: analytics, POS, inventory, supply, members, loans, cooperatives, RAT, finance, village, knowledge, export, users, settings
+- Charts: sales, margin, slow-moving, RFM segmentation, price comparison
+- SIMKOPDES-compatible export (CSV / XLSX / JSON → MinIO)
 
-### Flutter Mobile App (Member & Operator Interface)
-- **30+ screens** for transactions, products, recommendations, savings, and AI assistant
-- Member self-service: check savings, view transactions, apply for loans
-- Push notifications for prices, promotions, and payment reminders
+### Flutter mobile (operator + anggota)
+- **~26 screens** wired to live `/mobile/*` APIs (Dio + secure tokens)
+- Tabs: Beranda / Transaksi / Produk / Rekomendasi + Asisten (knowledge search)
+- Polling (10s / 30s / 60s) + local notifications — **FCM is Post-MVP**
 
 ---
 
-## Slide 5: AI Engine — Smart, But With Guardrails
+## Slide 5: AI Engine — Smart, With Guardrails
 
 ### One model. Three input modes.
 
-**Google Gemini 2.5 Flash** handles text parsing, voice transcription, and receipt OCR through a single multimodal pipeline — reducing cost and complexity.
+**Google Gemini 2.5 Flash** — text extraction, voice transcription, receipt OCR in one multimodal pipeline.
 
 ### The "No AI Math" Rule
 
-AI extracts **what** was sold and **how many** — but **never** the price or total. All financial values are computed from the authoritative database price list. This is our core safety principle:
+AI extracts **what** was sold and **how many** — **never** the price or total. Money always comes from the DB price list:
 
-> *AI hallucinates a price? It never reaches the ledger. The database is always the source of truth for money.*
+> *If AI hallucinates a price, it never reaches the ledger.*
 
-### AI + Human Confirmation Loop
+### Product matching (Validation Engine)
 
-Every AI-parsed transaction requires a human **YA** (yes) before it commits. The operator is always the final authority:
+Exact name → substring / ILIKE → token Jaccard ≥ 0.5 → stock check → then confirm.
 
-| Response | Meaning |
-|----------|---------|
-| **YA** | Confirmed — commit transaction, update stock |
-| **UBAH** | Wrong — discard, operator will resend |
-| **BATAL** | Cancel — discard, do nothing |
+### Human confirmation loop
+
+| Reply | Effect |
+|-------|--------|
+| **YA** | Commit sale (or apply stock adjust) |
+| **UBAH** | Supersede draft; operator resends |
+| **BATAL** | Clear session; write nothing |
 
 ---
 
-## Slide 6: Key Features
+## Slide 6: Key Features (Honest MVP)
 
-### Core Operations
-- **WhatsApp transaction pipeline** — text, voice, photo → transaction
-- **Real-time inventory** — stock decremented atomically on every sale
-- **Multi-product receipts** — "2 Beras Premium, 1 Minyak Goreng, 3 Gula Pasir" parsed in one message
-- **Manual POS fallback** — web-based point of sale for non-WhatsApp scenarios
+### Core operations
+- WhatsApp pipeline: text / voice / photo → confirm → stock
+- Real-time inventaris on YA (and POS / mobile manual TX)
+- Multi-line messages in one parse
+- **POS fallback** on web if WhatsApp is down
 
-### Supply Chain Intelligence
-- **ADS-based restock planning** — Average Daily Sales drives automatic reorder suggestions
-- **Auto purchase order generation** — low stock triggers POs without human intervention
-- **Supplier scorecards** — performance tracking across price, delivery time, and quality
-- **E-commerce price scraping** — daily market price comparison for competitive pricing
+### Supply & intelligence
+- ADS-based restock plan + auto draft POs (Celery beat)
+- Recommendations: STOCKOUT_RISK / SLOW_MOVING / RESTOCK (24h dedupe)
+- Market price comparison via `harga_pasar` (**MVP: simulated daily inserts**; live marketplace scrape = Post-MVP)
 
-### Member Engagement
-- **RFM segmentation** — GOLD / SILVER / BRONZE / INACTIVE tiers for targeted campaigns
-- **AI recommendations** — restock alerts, bundling suggestions, promotion opportunities
-- **Automated broadcasts** — daily price lists, winback campaigns, onboarding messages, milestone celebrations
-- **Self-service** — members check savings, loan status, and transaction history
+### Member engagement
+- RFM tiers from `v_segmentasi_anggota`: **DIAMOND / EMAS / PERAK / PERUNGGU / TIDAK_AKTIF**
+- Retention labels: PELANGGAN_SETIA → HILANG
+- Winback / onboarding / milestone WhatsApp jobs
+- Anggota self-service: my-transactions, my-savings, my-loans
 
-### Compliance & Reporting
-- **SIMKOPDES-compatible exports** — CSV, XLSX, JSON formats
-- **Full audit trail** — every transaction, stock movement, and price change is logged
-- **PII compliance** — NIK masking, role-based access control
-- **Automated backups** — daily database backup to MinIO object storage
+### Compliance
+- SIMKOPDES-shaped schema + export adapter (no fake “direct government API write”)
+- NIK masking, JWT + RBAC
+- Daily `pg_dump` → MinIO backups
 
 ---
 
 ## Slide 7: Architecture
 
-### Three independent codebases, one REST API
-
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    KopTumbuh System                       │
-│                                                           │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │  WhatsApp    │  │  Web Dashboard│  │  Mobile App  │   │
-│  │  (Chat)      │  │  (Next.js)   │  │  (Flutter)   │   │
-│  │  Evolution   │  │  Port 3000   │  │  Android/iOS │   │
-│  │  API Bridge  │  │              │  │              │   │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘   │
-│         │                 │                 │            │
-│         └─────────────────┼─────────────────┘            │
-│                           │                              │
-│                    ┌──────▼──────┐                       │
-│                    │  Backend API │                       │
-│                    │  (FastAPI)  │                       │
-│                    │  Port 8000  │                       │
-│                    └──────┬──────┘                       │
-│                           │                              │
-│         ┌─────────────────┼─────────────────┐            │
-│         │                 │                 │            │
-│    ┌────▼────┐      ┌────▼────┐      ┌────▼────┐       │
-│    │PostgreSQL│     │  Redis  │      │  MinIO  │       │
-│    │  15      │     │   7     │      │  (S3)   │       │
-│    │ 41 tables│     │ Cache/  │      │ Storage │       │
-│    │ 5 views  │     │ Queue   │      │         │       │
-│    └─────────┘      └─────────┘      └─────────┘       │
-│                                                           │
-│    ┌──────────┐    ┌──────────┐    ┌──────────┐         │
-│    │  Celery  │    │  Celery  │    │  Gemini  │         │
-│    │  Worker  │    │   Beat   │    │  2.5 API │         │
-│    │ (async)  │    │(scheduler)│   │  (AI/ML) │         │
-│    └──────────┘    └──────────┘    └──────────┘         │
-└─────────────────────────────────────────────────────────┘
+WhatsApp (Evolution) ─┐
+Web (Next.js :3000)  ─┼─► FastAPI :8000 ─► PostgreSQL (koptumbuh)
+Mobile (Flutter)     ─┘         │
+                                ├─ Redis (sessions, rate limit, Celery)
+                                ├─ MinIO (media / exports / backups)
+                                └─ Celery worker + beat + Gemini 2.5 Flash
 ```
 
-### Tech Stack
+### Tech stack (as shipped)
 
 | Layer | Technology |
-|-------|-----------|
-| Backend | Python 3.11+ / FastAPI / Celery / Redis |
-| Database | PostgreSQL 15 / SQLAlchemy 2.0 / Alembic |
-| AI | Google Gemini 2.5 Flash (multimodal) |
-| Web Dashboard | Next.js 14 / React / Tailwind CSS / Recharts |
-| Mobile | Flutter 3.x / Dio / Material 3 |
+|-------|------------|
+| Backend | Python / FastAPI / Celery / Redis |
+| Database | PostgreSQL + SQLAlchemy 2.0 · additive SQL in `migrations.sql` (not Alembic for MVP) |
+| AI | Google Gemini 2.5 Flash |
+| Web | Next.js 14 / Tailwind / TanStack Query / Recharts |
+| Mobile | Flutter / Dio / flutter_secure_storage / local notifications |
 | Storage | MinIO (S3-compatible) |
-| WhatsApp | Evolution API (open-source bridge) |
-| Deployment | Docker Compose (7 services) |
+| WhatsApp | Evolution API |
+| Deploy | Docker Compose (API, worker, beat, Postgres, Redis, MinIO, Evolution) |
+
+### Proof points (hackathon build)
+
+| Metric | Value |
+|--------|-------|
+| API routes registered | **~99** |
+| Web dashboard pages | **~23** |
+| Mobile screens | **~26** (API-wired) |
+| Analytical / ops views | **~20** (schema + migrations) |
+| Celery beat jobs | **9** (recs, prices, briefing, PO, RFM, backup, …) |
+| Integration tests | **TC-001–006** + `api_tests.sh` |
+| Deploy | `docker compose up -d --build` |
 
 ---
 
 ## Slide 8: Market Opportunity
-
-### The Numbers
 
 | Metric | Value |
 |--------|-------|
@@ -197,131 +179,154 @@ Every AI-parsed transaction requires a human **YA** (yes) before it commits. The
 | Villages with internet access | **75,000+** (growing) |
 | WhatsApp users in Indonesia | **90+ million DAU** |
 
-### Why Now?
+### Why now?
 
-1. **SIMKOPDES mandate** — the government requires all village cooperatives to digitize reporting, but most lack tools to do it efficiently.
-2. **Digital infrastructure is ready** — 4G covers most of rural Java and Sumatra, and WhatsApp penetration is near-universal.
-3. **AI costs have collapsed** — Gemini 2.5 Flash processes a full transaction for fractions of a rupiah, making per-transaction AI economically viable for the first time.
-4. **No incumbent with WhatsApp-first UX** — existing cooperative software requires app installation, training, and devices that operators don't have.
+1. **SIMKOPDES mandate** — digitize reporting; most co-ops lack usable tools.
+2. **Rural connectivity + WhatsApp ubiquity** — the channel is already there.
+3. **AI cost collapse** — per-TX multimodal parse is finally affordable.
+4. **No WhatsApp-first incumbent** for village cooperative ops + SIMKOPDES-shaped data.
 
 ---
 
 ## Slide 9: Business Model
 
-### B2B SaaS for Cooperatives
+### B2B SaaS for cooperatives
 
 | Tier | Price | Includes |
 |------|-------|----------|
-| **Starter** | Free | Up to 3 operators, 500 transactions/month, basic reports |
-| **Tumbuh** | Rp 500K/month | Up to 10 operators, unlimited transactions, analytics, AI recommendations |
-| **Maju** | Rp 1.5M/month | Unlimited operators, supply chain automation, auto-PO, priority support |
-| **Federasi** | Custom | Multi-cooperative federation dashboard, white-label option, API access |
+| **Starter** | Free | Up to 3 operators, 500 TX/month, basic reports |
+| **Tumbuh** | Rp 500K/month | 10 operators, unlimited TX, analytics, AI recs |
+| **Maju** | Rp 1.5M/month | Unlimited operators, supply automation, priority support |
+| **Federasi** | Custom | Multi-coop dashboard, white-label, API |
 
-### Additional Revenue Streams
+### Later revenue (Post-MVP)
 
-- **Transaction fees** on member savings deposits and loan payments (revenue share with cooperative)
-- **Supplier marketplace** — connect cooperatives directly to distributors, take a commission
-- **Data insights** — aggregated, anonymized market intelligence for government and agribusiness
+- Savings / loan payment rails (revenue share)
+- Supplier marketplace commission
+- Anonymized market intelligence for government / agribusiness
 
 ---
 
 ## Slide 10: Competitive Advantage
 
-| Feature | KopTumbuh | Existing POS | SaaS Koperasi |
+| Feature | KopTumbuh | Typical POS | SaaS Koperasi |
 |---------|-----------|-------------|---------------|
-| WhatsApp-native transactions | Yes | No | No |
+| WhatsApp-native TX + YA confirm | Yes | No | No |
 | Multimodal AI (text + voice + photo) | Yes | No | Limited |
-| Real-time inventory | Yes | Some | Some |
-| AI with guardrails (No AI Math) | Yes | N/A | No |
-| SIMKOPDES-compatible exports | Yes | Manual | Partial |
-| Supply chain automation | Yes | No | No |
-| Member self-service (WA + app) | Yes | No | App only |
-| Multi-platform (WA + Web + Mobile) | Yes | No | Some |
-| RFM engagement engine | Yes | No | No |
+| No AI Math (DB prices only) | Yes | N/A | Rare |
+| Real-time inventaris | Yes | Some | Some |
+| SIMKOPDES-compatible export | Yes | Manual | Partial |
+| Supply / RFM engines | Yes | No | Rare |
+| Web + mobile + WA | Yes | No | Some |
 
-### Our Moat
+### Moat
 
-1. **The WhatsApp wedge** — operators won't switch tools once their daily workflow runs through chat. High switching cost, low churn risk.
-2. **Data network effects** — the more transactions processed, the better the AI gets at product matching and the smarter the recommendations become.
-3. **SIMKOPDES lock-in** — built as an extension of the government schema. If we become the reference implementation, migration cost for cooperatives drops to zero.
+1. **WhatsApp wedge** — daily habit = high switching cost  
+2. **Data flywheel** — more TX → better matching & recs  
+3. **Schema alignment** — built on SIMKOPDES-shaped tables, not a parallel silo  
 
 ---
 
 ## Slide 11: Traction & Roadmap
 
-### Hackathon Milestones (Current)
+### Hackathon (today) — working MVP
 
-- Fully functional WhatsApp → transaction → inventory pipeline
-- 25+ page web dashboard with real-time analytics
-- 30+ screen Flutter mobile app
-- 41 database tables with SIMKOPDES schema compatibility
-- 9 automated Celery Beat scheduled tasks
-- 7 test suites covering critical paths
-- Docker Compose one-command deployment
+- End-to-end WhatsApp → validate → YA → stock
+- Web analytics + POS + export
+- Mobile live against `/mobile/*`
+- Docker one-command stack
+- Fallback demo path if Evolution/WhatsApp is down (POS or webhook curl)
 
-### Next 3 Months
+### Next 3 months (Post-MVP)
 
-- Pilot with 3-5 village cooperatives in West Java
-- Bahasa Indonesia voice model fine-tuning for regional dialects
-- WhatsApp Pay integration for member savings and loan payments
-- Offline queue — queue transactions when internet drops, sync when reconnected
+- Pilot 3–5 co-ops (West Java)
+- Offline TX queue + FCM push
+- Dialect-tuned voice
+- Live marketplace / Bapanas price feeds (replace simulated `harga_pasar`)
 
-### Next 6-12 Months
+### Next 6–12 months
 
-- 50+ cooperative customers
-- B2B supplier marketplace MVP
-- Government partnership for SIMKOPDES integration
-- Federated cooperative dashboard for kabupaten-level oversight
-- SMS fallback channel for areas without WhatsApp coverage
+- 50+ co-ops · supplier marketplace · deeper SIMKOPDES partnership · federasi dashboard
 
 ---
 
 ## Slide 12: The Ask
 
-### We are seeking:
+### For hackathon judges
 
-- **Pilot partners** — 3-5 village cooperatives willing to run KopTumbuh alongside their existing system for 3 months
-- **Strategic investment** — to fund the pilot program, voice model fine-tuning, and go-to-market in West Java
-- **Government introduction** — connections to Kemenkop UKM and Dinas Koperasi for SIMKOPDES alignment
+1. **Validate the wedge** — WhatsApp-first + human confirm is the right UX for village co-ops  
+2. **Score the working demo** — not a mockup: live pipeline + dashboard + mobile  
+3. **Open doors** — intros to Kemenkop / Dinas Koperasi / pilot co-ops  
 
-### Why back this team:
+### For partners (after the hackathon)
 
-- **Deep understanding of the problem** — the data model proves we understand SIMKOPDES at the schema level
-- **Working product, not a slide deck** — WhatsApp pipeline, web dashboard, and mobile app are all built and demonstrable
-- **Right tech, right time** — AI costs have dropped to the point where per-transaction AI for village cooperatives is viable today, not in 3 years
-- **Massive underserved market** — 180,000 cooperatives, 50 million members, zero WhatsApp-first competitors
+- **3–5 pilot cooperatives** (3 months side-by-side with current process)  
+- **Strategic capital** for pilots, GTM in West Java, and voice/offline hardening  
+- **SIMKOPDES alignment** conversations with government stakeholders  
+
+### Why this team
+
+- Schema-level SIMKOPDES literacy (not just UI)  
+- Shippable product today  
+- Timing: AI unit economics finally work for village TX volume  
 
 ---
 
 ## Slide 13: Demo
 
-### See it live:
+### Credentials
 
 ```
-Operator WhatsApp: 628123456003
-Password: kop123
-Cooperative: KOP-JasaAI-A1B2C3D4E5F6
+Phone / login: 628123456003
+Password:      kop123
+Koperasi:      KOP-JasaAI-A1B2C3D4E5F6
 
-Backend API: http://localhost:8000/docs
-Web Dashboard: http://localhost:3000
+API docs:      http://localhost:8000/docs
+Dashboard:     http://localhost:3000
 ```
 
-### Demo flow:
-1. Operator sends a sale message via WhatsApp
-2. AI parses and returns confirmation with computed total
-3. Operator replies YA — transaction commits, stock updates
-4. Dashboard shows real-time sales and inventory changes
-5. Mobile app reflects updated stock and transaction history
+### Happy path (≤5 min)
+
+1. Send sale text on WhatsApp  
+2. Reply **YA** to confirmation  
+3. Refresh web dashboard → TX + KPI + stock  
+4. Optional: mobile Beranda / Transaksi  
+
+### Fallback if WhatsApp is down
+
+1. Web **POS Kasir** → Simpan transaksi, **or**  
+2. Webhook curl (see `README.md` / `DEMO.md`) → then show dashboard  
 
 ---
 
-## Team JasaAI
+## Slide 14: Team JasaAI
 
-**KopTumbuh** — *"Dari desa, untuk Indonesia."* (From the village, for Indonesia.)
+| Role | Focus | Name |
+|------|--------|------|
+| Product / Architecture | SIMKOPDES data model, MVP scope | _[fill]_ |
+| Backend / AI | FastAPI, Celery, Gemini pipeline | _[fill]_ |
+| Web | Next.js dashboard + analytics | _[fill]_ |
+| Mobile | Flutter Dio app + polling | _[fill]_ |
 
-Built with:
-- Python / FastAPI / Celery / PostgreSQL
-- Next.js 14 / React / Tailwind CSS
-- Flutter / Dart / Material 3
-- Google Gemini 2.5 Flash
-- Docker / MinIO / Redis
+*(Replace placeholders with real names before presenting.)*
+
+**KopTumbuh** — *Dari desa, untuk Indonesia.*
+
+---
+
+## Slide 15: Close / CTA
+
+### One line
+
+**Turn WhatsApp chats into trusted cooperative ledgers — with AI that never invents the money.**
+
+### Next step
+
+1. Watch the 5-minute demo  
+2. Try login `628123456003` / `kop123`  
+3. Talk to us about a village pilot  
+
+**Contact:** Team JasaAI · KopTumbuh  
+**Repo / docs:** `README.md` · `VALIDATION_CHECKLIST.md` · OpenAPI `/docs`
+
+Built with: FastAPI · Celery · PostgreSQL · Next.js · Flutter · Gemini 2.5 Flash · Docker · MinIO · Redis · Evolution API
