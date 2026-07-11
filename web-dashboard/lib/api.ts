@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 const ACCESS_COOKIE = 'koptumbuh_token';
 const REFRESH_COOKIE = 'koptumbuh_refresh';
