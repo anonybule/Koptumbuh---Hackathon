@@ -1,126 +1,389 @@
-# KopTumbuh — Team JasaAI
+# KopTumbuh
 
-WhatsApp-first cooperative operations for village co-ops: message → AI parse → YA/UBAH/BATAL → sale + stock, with admin web dashboard and Flutter mobile app.
+## Product Name
 
-**Coop ref:** `KOP-JasaAI-A1B2C3D4E5F6`  
-**Demo login:** `628123456003` / `kop123`
+**KopTumbuh** — *Koperasi Tumbuh* (Growing Cooperatives).
+
+A WhatsApp-first, AI-powered operational platform that upgrades Indonesia’s SIMKOPDES cooperative management system with conversational transaction recording and supply chain intelligence.
+
+**Team:** JasaAI · **Coop ref:** `KOP-JasaAI-A1B2C3D4E5F6` · **Table prefix:** `JasaAI_`
 
 ---
 
 ## Problem
 
-Village cooperative operators already live in WhatsApp. Paper POS and delayed stock updates cause stockouts, bad margins, and weak SIMKOPDES reporting. KopTumbuh turns everyday chat into confirmed operational data.
+Indonesia has over 127,000 active cooperatives (*koperasi*). The government mandates operational reporting through **SIMKOPDES**, a system that typically requires manual data entry by trained operators.
 
-## Solution
+**The gap:**
 
-1. Operator sends text / voice / photo on WhatsApp.  
-2. Gemini extracts intent + line items; validator matches products (exact → ILIKE → Jaccard) and uses **DB prices only**.  
-3. Operator replies **YA** / **UBAH** / **BATAL**. Only YA commits `transaksi_penjualan` + `barang_keluar` + inventaris.  
-4. Web dashboard and mobile app show KPIs, inventory, supply restock plans, recommendations, and SIMKOPDES export.
+- Many rural cooperatives still record daily sales on **paper notebooks**, then transcribe into SIMKOPDES days or weeks later
+- Transcription errors, lost notebooks, and delayed reporting are common
+- Operators spend hours on admin instead of serving members
+- Restock and assortment decisions are intuition-driven, not data-driven
+- Existing mobile/desktop tools lack a **conversational** interface operators already use every day
 
-## Architecture (short)
-
-| Layer | Stack |
-|-------|--------|
-| Gateway | Evolution API webhook → FastAPI → Redis rate limit + idempotency |
-| Workers | Celery + Redis (parse, validate, confirm dispatch, recs, supply, RFM, backup) |
-| Data | PostgreSQL `koptumbuh` schema + MinIO (media / exports / backups) |
-| Clients | Next.js 14 dashboard + Flutter mobile |
-| Export | CSV / XLSX / JSON → MinIO + `ekspor_log` (no direct SIMKOPDES write) |
-
-See `implementation_plan.md` and `VALIDATION_CHECKLIST.md` for full layer checklist.
+**KopTumbuh solves this by letting operators record transactions the way they already communicate — by sending a WhatsApp message.**
 
 ---
 
-## Quick start (≈5 minutes)
+## Target User
 
-### 1. Backend
+| Persona | Role | Pain Point |
+|---------|------|------------|
+| **Budi Santoso** | Operator Kasir | Transcribes paper into systems; needs WhatsApp + mobile for speed, web for deeper work |
+| **Pak Haji Ahmad** | Anggota | No self-service view of savings / purchase history |
+| **Agus Wijaya** | Ketua Koperasi | No real-time sales visibility between monthly meetings |
+| **Ratna Dewi** | Bendahara / Admin | Manual reconciliation before RAT; needs export + finance views |
+
+---
+
+## Selected Theme
+
+**Accelerating Digital Transformation for Rural Economic Institutions.**
+
+KopTumbuh closes the gap between government digitalization mandates (SIMKOPDES) and rural cooperative reality. It does **not** replace SIMKOPDES — it captures data at the source (WhatsApp) and **exports** to the required formats.
+
+---
+
+## Solution Overview
+
+KopTumbuh is a **three-surface system** on one API:
+
+```
+  WhatsApp (Evolution)     Web Dashboard (Next.js)     Mobile (Flutter)
+           \                      |                        /
+            \                     |                       /
+             v                    v                      v
+                    Backend API (FastAPI :8000)
+              WhatsApp pipeline · Gemini · Validation
+              Celery workers · PostgreSQL · Redis · MinIO
+```
+
+**How it works in 30 seconds:**
+
+1. Operator sends WhatsApp: *“Bu Siti beli 2 Beras 5kg, 1 Minyak Goreng 2L, bayar tunai”*
+2. AI extracts entities (products, quantities, customer, payment) — **not** prices/totals
+3. System looks up **database prices** (**No AI Math**)
+4. Operator gets confirmation: **YA / UBAH / BATAL**
+5. Reply `YA` → ledger + inventory updated atomically
+6. Dashboard / mobile show sales, stock alerts, recommendations
+
+**If WhatsApp is down:** Web **POS Kasir → Demo 1-klik → Dashboard Refresh** (&lt;60s). See [DEMO.md](DEMO.md).
+
+---
+
+## Features
+
+### Core transaction flow
+
+- WhatsApp recording — **text, voice, photo**
+- Gemini 2.5 Flash multimodal extraction (Indonesian)
+- Human-in-the-loop — **YA / UBAH / BATAL**
+- Deterministic math — DB prices only
+- Atomic commit — `transaksi_penjualan` + `barang_keluar` + inventaris
+- Intent branching — sale, restock draft, stock adjust, knowledge Q&A
+- Web POS fallback (no Gemini required)
+
+### Supply chain intelligence
+
+- Stockout / restock recommendations (ADS + lead time)
+- Slow-moving detection
+- Supplier list, restock plan, purchase history, draft POs (Celery beat)
+
+### Member engagement
+
+- RFM segmentation (`DIAMOND` / `EMAS` / `PERAK` / `PERUNGGU` / `TIDAK_AKTIF`)
+- Winback / onboarding / milestone WhatsApp jobs
+- Anggota self-service: my-transactions, my-savings, my-loans
+
+### Government compliance
+
+- SIMKOPDES-shaped core schema + KopTumbuh extensions
+- One-click export — CSV / XLSX / JSON → MinIO + `ekspor_log`
+- RAT / SHU views on dashboard
+
+### Multi-tenant & roles
+
+- Roles: `OPERATOR`, `KETUA`, `BENDAHARA`, `PEMBINA`, `ADMIN`, `ANGGOTA`
+- Isolation via `koperasi_ref` (HUB: `referensi_koperasi_wilayah`)
+
+---
+
+## Tech Stack
+
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| Backend API | Python / FastAPI | Async REST + OpenAPI |
+| Workers | Celery + Redis | Parse, validate, recs, supply, RFM, backup |
+| Database | PostgreSQL 15 | Government-compatible `koptumbuh` schema |
+| Cache / queue | Redis 7 | Celery, sessions, rate limit, idempotency |
+| Object storage | MinIO | Media, exports, backups |
+| WhatsApp | Evolution API | Self-hosted, QR pairing |
+| AI | Google Gemini 2.5 Flash | Text / voice / OCR |
+| Web | Next.js 14 + Tailwind + TanStack Query + Recharts | Admin analytics |
+| Mobile | Flutter + Dio + secure storage | Operator + anggota |
+| Auth | JWT + bcrypt | Web + mobile |
+| Infra | Docker Compose | Postgres, Redis, MinIO, Evolution, API, worker, beat |
+
+Additive SQL: `database/migrations.sql` (views, loans, delivery, etc.).
+
+---
+
+## Architecture
+
+### System flow
+
+```
+WhatsApp user (operator)
+        │ text / voice / photo
+        ▼
+Evolution API ──webhook──► FastAPI (rate limit, idempotency, pesan_masuk)
+                                │
+                                ▼
+                         Celery: route → Gemini → validate → confirm
+                                │
+                    YA ─────────┼─────────► atomic DB commit
+                                │
+              PostgreSQL ◄──────┴──────► Redis session (15 min TTL)
+                     ▲
+         Web + Mobile REST clients
+```
+
+### Database HUB pattern
+
+All operational tables FK to **`referensi_koperasi_wilayah`** (central hub), which links to `referensi_wilayah`. This supports region queries, historical integrity, and SIMKOPDES-shaped export.
+
+Full DDL: `database/koptumbuh_updated_minimal_data_model.sql`  
+Seed: `database/seed_demo.sql`  
+Views / extensions: `database/migrations.sql` (~20 analytical / ops views including reconciliation, RFM, SHU, safety stock).
+
+---
+
+## How to Run
+
+### Prerequisites
+
+- Docker Desktop  
+- Node.js 18+ (web)  
+- Optional: Flutter (mobile), `GEMINI_API_KEY` (live WhatsApp AI only)
+
+### Quick start (~5 minutes)
 
 ```bash
+# 1. Configure
 cd backend
 cp .env.example .env
-# Set GEMINI_API_KEY (required for live AI parse)
+# Set GEMINI_API_KEY for WhatsApp AI path (optional for POS demo)
 
+# 2. Start stack (API + worker + beat + Postgres + Redis + MinIO + Evolution)
 docker compose up -d --build
-```
 
-- Health: http://localhost:8000/health  
-- OpenAPI: http://localhost:8000/docs  
+# 3. Health
+curl -s http://localhost:8000/health
 
-Apply additive migrations if needed:
+# 4. Additive migrations (fresh volumes)
+# Git Bash / WSL:
+docker compose exec -T postgres psql -U dev_admin -d koptumbuh_dev < ../database/migrations.sql
 
-```bash
-# from host with psql, or via compose exec
-psql "$DATABASE_URL" -f ../database/migrations.sql
-```
-
-### 2. Web dashboard
-
-```bash
-cd web-dashboard
+# 5. Web dashboard
+cd ../web-dashboard
 npm install
 npm run dev
+# http://localhost:3000
 ```
 
-Open http://localhost:3000 — login with demo credentials.
+OpenAPI: http://localhost:8000/docs · Evolution: http://localhost:8080  
 
-### 3. Mobile (optional)
+Full deploy notes: **[DEPLOY.md](DEPLOY.md)**
+
+### Mobile (optional)
 
 ```bash
 cd mobile-app
 flutter pub get
 flutter run
+# Emulator API base: http://10.0.2.2:8000/api/v1
 ```
 
-Android emulator API base: `http://10.0.2.2:8000/api/v1`.
-
-### 4. Smoke tests
+### Smoke / demo readiness (no WhatsApp)
 
 ```bash
 bash backend/scripts/api_tests.sh
+bash backend/scripts/demo_ready.sh
+# Windows: cd backend\scripts; .\demo_ready.ps1
 cd backend && pytest tests/ -v
 ```
 
----
+### Development without WhatsApp
 
-## Demo script (≤5 minutes)
+**Preferred:** Dashboard → **POS Kasir → Demo 1-klik → Refresh**.
 
-1. Pair WhatsApp via Evolution (QR in Evolution console).  
-2. Send: `Bu Siti beli 2 Beras Premium 5kg, bayar tunai`  
-3. Reply `YA` to the confirmation.  
-4. Web dashboard → Refresh → new TX + KPI + inventory.  
-5. Optional: mobile Beranda / Rekomendasi polling; Admin → Export SIMKOPDES.
-
-### Fallback if WhatsApp is down
+Or webhook (needs worker + Gemini for full YA path):
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/webhooks/whatsapp \
+curl -s -X POST http://localhost:8000/api/v1/webhooks/whatsapp \
   -H "Content-Type: application/json" \
-  -d '{"event":"messages.upsert","data":{"key":{"id":"DEMO-1","remoteJid":"628123456003@s.whatsapp.net"},"message":{"conversation":"Bu Siti beli 1 Beras Premium 5kg bayar tunai","messageType":"conversation"}}}'
+  -H "apikey: koptumbuh-evolution-key" \
+  -d '{
+    "event": "messages.upsert",
+    "data": {
+      "key": {"id": "DEV-001", "remoteJid": "628123456003@s.whatsapp.net"},
+      "message": {
+        "conversation": "Bu Siti beli 2 Beras Premium 5kg dan 1 Minyak Goreng 2L, bayar tunai",
+        "messageType": "conversation"
+      }
+    }
+  }'
 ```
 
-Then post `YA` with a new message id after the confirmation session is active — or show POS + dashboard from seed data. Record a 3-minute fallback video covering the same five beats.
+Then send `YA` with a **new** message id after confirmation is queued. Details: **[DEMO.md](DEMO.md)**.
 
 ---
 
-## What is included (MVP)
+## Demo Account
 
-- Full `/api/v1/mobile/*` and `/api/v1/admin/*` contracts  
-- Engines: transaction, validation, supply (ADS/PO), recommender, export, reconciliation, BI, RFM relationship, DQ normalize, backup  
-- Web: analytics, inventory, supply, cooperatives, members, finance, village, knowledge, users, export, recommendations, notifications, POS, transactions  
-- Mobile: Dio + secure storage, tabs, polling (10s/30s/60s), local notifications, role-aware UI  
-- Tests: TC-001–006 + `api_tests.sh`
+| Role | Phone | Password | Access |
+|------|-------|----------|--------|
+| Operator (Budi) | `628123456003` | `kop123` | WhatsApp / mobile / POS / most ops |
+| Ketua (Agus) | `628123456001` | `kop123` | Dashboard (admin-capable roles) |
+| Bendahara (Ratna) | `628123456002` | `kop123` | Finance / export oriented |
 
-## Out of scope (Post-MVP)
+**Demo cooperative:** Koperasi Tumbuh Bersama — Desa Jonggol, Kec. Jonggol, Kab. Bogor, Jawa Barat (`KOP-JasaAI-A1B2C3D4E5F6`).
 
-FCM push, dark mode, barcode scanner, offline TX queue, Meta Cloud API swap, cross-coop benchmarking, full government SIMKOPDES parity beyond export adapter.
+**Pre-loaded seed:** products + inventaris, members + savings, sample transactions, supplier, RAT/docs as in `seed_demo.sql`.
+
+### Judge docs
+
+| Doc | Use |
+|-----|-----|
+| [JUDGES_ONE_PAGER.md](JUDGES_ONE_PAGER.md) | One-page summary |
+| [DEMO.md](DEMO.md) | 5-min Path A/B/C runbook |
+| [QA_CARDS.md](QA_CARDS.md) | Live Q&A |
+| [PITCH_DECK.md](PITCH_DECK.md) | Full pitch narrative |
+| [VALIDATION_CHECKLIST.md](VALIDATION_CHECKLIST.md) | Architecture sign-off |
 
 ---
 
-## Environment
+## Data Model
 
-See `backend/.env.example` for JWT, Redis, MinIO, Evolution, Gemini, and DB variables. Never commit real NIK or production secrets.
+Government-compatible schema `koptumbuh` with core SIMKOPDES-shaped tables plus KopTumbuh extensions:
+
+| Group | Description |
+|-------|-------------|
+| Master & reference | Wilayah, document/outlet types, commodities |
+| Identity & organization | Profil, pengurus, karyawan, dokumen, KBLI, aset, gerai |
+| Members | Anggota, simpanan, pinjaman (extension) |
+| Operations | Produk, inventaris, barang masuk/keluar, transaksi |
+| Finance & applications | Bank, modal, pengajuan_* |
+| Village & governance | Komoditas/profil desa, RAT |
+| KopTumbuh extensions | Users, WA messages, parsing, confirmations, suppliers, recommendations, notifications, adjustments, mapping, export logs, PO, deliveries, harga_pasar, … |
+
+**Analytical views (examples):** `v_stok_terhitung`, `v_rekonsiliasi_stok`, `v_penjualan_harian`, `v_produk_terlaris`, `v_aktivitas_anggota`, plus migrations views (`v_margin_produk`, `v_segmentasi_anggota`, `v_shu_estimasi`, `v_safety_stock`, …).
+
+---
+
+## AI Use Disclosure
+
+| Model | Input | Output | Safeguard |
+|-------|-------|--------|-----------|
+| Gemini 2.5 Flash | Free-text TX (ID) | Structured JSON (intent, items, customer, payment) | `temperature=0.0`, schema, DB entity match |
+| Gemini 2.5 Flash | Voice ≤ 60s | Transcript → text parser | Duration cap; re-validate |
+| Gemini 2.5 Flash | Receipt photos | Line items JSON | Low confidence → `NEEDS_REVIEW`; size caps |
+
+**No AI Math:** AI extracts entities only. Prices and totals always come from PostgreSQL:
+
+```python
+# NOT: total = ai_response.total
+db_price = float(latest_barang_masuk.harga_jual)
+subtotal = quantity * db_price
+```
+
+Unmatched products / empty items → **INVALID** / review — no ledger write without **YA**.
+
+**Data sent to Gemini:** message text, voice audio, or receipt image only. No NIK / member PII dumps in prompts. NIK masked in logs (`mask_nik`).
+
+---
+
+## Security & Privacy Notes
+
+### Data protection
+
+- NIK masking in logs (`327301******0001`)
+- No PII dumps in AI prompts
+- Tenant isolation via `koperasi_ref`
+- JWT + role checks (`require_operator` / `require_admin`)
+
+### Input validation
+
+- Max text length (config)
+- Max audio seconds / media size
+- Webhook rate limit ~60/min/sender (Redis)
+- Evolution `apikey` header when configured
+
+### Idempotency
+
+- Redis lock on `whatsapp_message_id` + DB unique / IntegrityError → `duplicate`
+
+### Transaction integrity
+
+- Confirm path commits sale + stock together; stock errors surface on WhatsApp
+- Reconciliation via `v_rekonsiliasi_stok` / admin stock-reconciliation API
+
+---
+
+## Pilot Plan
+
+### Phase 1 — Single co-op (Month 1)
+
+- Location: demo co-op pattern (Jonggol / Bogor area)
+- Users: Operator, Ketua, Bendahara
+- Parallel run paper + WhatsApp 2 weeks
+- Success: ≥90% capture via WA/POS, zero silent data loss, low match-failure rate
+
+### Phase 2 — Multi-co-op (Month 2–3)
+
+- 5–10 co-ops; Pembina oversight
+- Success: RAT/export figures within ~2% of manual process
+
+### Phase 3 — Deeper SIMKOPDES (Month 4–6)
+
+- Beyond file export toward official integration **if** APIs exist
+- Scale 50+ co-ops
+- Success: WhatsApp/POS → government-ready artifact in &lt; 60s operationally
+
+---
+
+## Demo Script (5 minutes)
+
+| Min | Focus |
+|-----|--------|
+| 1 | Dashboard KPIs / sales (Koperasi Tumbuh Bersama) |
+| 2–3 | WhatsApp sale → confirmation → **YA** → stock (or **POS Demo 1-klik**) |
+| 4 | Recommendations / slow-moving / RFM |
+| 5 | SIMKOPDES export + close |
+
+Full runbook + fallbacks: **[DEMO.md](DEMO.md)**.
+
+---
 
 ## Team
 
-**JasaAI** — KopTumbuh hackathon build.
+| Name | Role | Responsibilities |
+|------|------|------------------|
+| _[fill]_ | Backend / AI | FastAPI, Celery, Gemini pipeline, DB |
+| _[fill]_ | Frontend | Next.js dashboard, charts, POS |
+| _[fill]_ | Mobile | Flutter Dio app, polling |
+| _[fill]_ | Product / domain | SIMKOPDES alignment, pilot, pitch |
+
+**Team name:** JasaAI  
+**Hackathon isolation:** `KOP-JasaAI-A1B2C3D4E5F6` · extension prefix `JasaAI_`
+
+---
+
+## Post-MVP (explicitly out of scope for this build)
+
+FCM push, offline TX queue, live marketplace scrape (MVP uses scheduled **simulated** `harga_pasar`), Meta Cloud API swap, cross-coop benchmarking, barcode scanner, dark mode.
+
+---
+
+*Built for the cooperative digitalization hackathon, July 2026. KopTumbuh is not affiliated with or endorsed by the Indonesian Ministry of Cooperatives and SMEs.*

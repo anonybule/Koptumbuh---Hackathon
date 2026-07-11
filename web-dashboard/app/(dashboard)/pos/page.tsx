@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { apiClient } from '../../../lib/api';
-import { Plus, Minus, ShoppingCart } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, Zap } from 'lucide-react';
 
 interface InventoryItem {
   id: string;
@@ -25,13 +26,16 @@ export default function PosPage() {
   const [payment, setPayment] = useState('Cash');
   const [error, setError] = useState(false);
   const [note, setNote] = useState('');
+  const [lastTx, setLastTx] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function loadInventory() {
     try {
       const r = await apiClient<InventoryItem[]>('/admin/inventory?per_page=100');
-      if (r.success) setItems(r.data || []);
-      else setError(true);
+      if (r.success) {
+        setItems(r.data || []);
+        setError(false);
+      } else setError(true);
     } catch {
       setError(true);
     }
@@ -68,25 +72,31 @@ export default function PosPage() {
     setNote(`Draft disalin: "${draft}" — kirim via WhatsApp, lalu balas YA.`);
   }
 
-  async function commitSale() {
-    if (cart.length === 0) {
+  async function commitSale(lines?: CartLine[], cust?: string, pay?: string) {
+    const useCart = lines || cart;
+    const useCustomer = cust ?? customer;
+    const usePay = pay ?? payment;
+    if (useCart.length === 0) {
       setNote('Keranjang kosong.');
       return;
     }
     setSaving(true);
     setNote('');
+    setLastTx(null);
     try {
-      const r = await apiClient('/admin/pos/transactions', {
+      const r = await apiClient<{ id?: string; transaksi_sample_id?: string }>('/admin/pos/transactions', {
         method: 'POST',
         body: JSON.stringify({
-          customer_name: customer || 'Umum',
-          payment_method: payment,
-          line_items: cart.map((l) => ({ produk_sample_id: l.id, quantity: l.qty })),
+          customer_name: useCustomer || 'Umum',
+          payment_method: usePay,
+          line_items: useCart.map((l) => ({ produk_sample_id: l.id, quantity: l.qty })),
         }),
       });
       if (r.success) {
+        const txId = (r.data as any)?.transaksi_sample_id || (r.data as any)?.id || 'OK';
         setCart([]);
-        setNote(`Transaksi tersimpan: ${(r.data as any)?.transaksi_sample_id || 'OK'}`);
+        setLastTx(String(txId));
+        setNote(`Transaksi tersimpan: ${txId}`);
         await loadInventory();
       } else {
         setNote('Gagal menyimpan transaksi.');
@@ -98,18 +108,64 @@ export default function PosPage() {
     }
   }
 
+  async function demoOneClick() {
+    const first = items.find((i) => i.stock >= 1);
+    if (!first) {
+      setNote('Tidak ada produk berstok. Cek seed / inventaris.');
+      return;
+    }
+    setCustomer('Demo Juri');
+    setPayment('Cash');
+    const line = [{ id: first.id, name: first.name, qty: 1, stock: first.stock }];
+    setCart(line);
+    await commitSale(line, 'Demo Juri', 'Cash');
+  }
+
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-2">POS Kasir</h1>
-      <p className="text-sm text-gray-500 mb-6">
-        Commit langsung ke inventaris, atau salin draft WhatsApp untuk alur AI + YA.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">POS Kasir</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Fallback demo tanpa WhatsApp — commit langsung ke ledger + stok.
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={saving || items.length === 0}
+          onClick={demoOneClick}
+          className="flex items-center gap-2 px-4 py-2.5 bg-accent text-white rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-50 shadow-sm"
+          style={{ backgroundColor: '#a0ba3b' }}
+        >
+          <Zap size={16} />
+          Demo 1-klik
+        </button>
+      </div>
 
-      {error && <p className="text-red-500 text-sm mb-4">Gagal memuat inventaris.</p>}
+      {error && (
+        <p className="text-red-500 text-sm mb-4">
+          Gagal memuat inventaris. Pastikan API hidup (`curl localhost:8000/health`).
+        </p>
+      )}
+
+      {lastTx && (
+        <div className="mb-4 p-4 rounded-xl border border-green-200 bg-green-50 text-sm">
+          <p className="font-semibold text-green-800">Demo sale OK — {lastTx}</p>
+          <p className="text-green-700 mt-1">Buka dashboard dan klik Refresh untuk lihat KPI &amp; transaksi terbaru.</p>
+          <div className="flex flex-wrap gap-3 mt-3">
+            <Link href="/" className="text-primary font-medium hover:underline">→ Dashboard</Link>
+            <Link href="/transactions" className="text-primary font-medium hover:underline">→ Riwayat transaksi</Link>
+            <Link href="/inventory" className="text-primary font-medium hover:underline">→ Inventaris</Link>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border overflow-hidden">
-          <div className="p-4 border-b font-medium text-gray-800">Produk</div>
+          <div className="p-4 border-b font-medium text-gray-800 flex justify-between">
+            <span>Produk</span>
+            <button type="button" onClick={loadInventory} className="text-xs text-primary hover:underline">Muat ulang</button>
+          </div>
           <div className="divide-y max-h-[520px] overflow-auto">
             {items.map((item) => (
               <button
@@ -159,7 +215,7 @@ export default function PosPage() {
           </select>
 
           {cart.length === 0 ? (
-            <p className="text-sm text-gray-400 mb-4">Keranjang kosong.</p>
+            <p className="text-sm text-gray-400 mb-4">Keranjang kosong — atau pakai Demo 1-klik.</p>
           ) : (
             <div className="space-y-3 mb-4">
               {cart.map((l) => (
@@ -181,7 +237,7 @@ export default function PosPage() {
           <button
             type="button"
             disabled={saving}
-            onClick={commitSale}
+            onClick={() => commitSale()}
             className="w-full bg-primary text-white py-2.5 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 mb-2"
           >
             {saving ? 'Menyimpan…' : 'Simpan transaksi'}
@@ -193,10 +249,7 @@ export default function PosPage() {
           >
             Salin draft WhatsApp
           </button>
-          {note && <p className="mt-3 text-xs text-gray-600 bg-gray-50 p-3 rounded-lg">{note}</p>}
-          <a href="/transactions" className="block mt-4 text-sm text-primary font-medium hover:underline">
-            Lihat riwayat transaksi →
-          </a>
+          {note && !lastTx && <p className="mt-3 text-xs text-gray-600 bg-gray-50 p-3 rounded-lg">{note}</p>}
         </div>
       </div>
     </div>

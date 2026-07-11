@@ -27,10 +27,12 @@ export default function DashboardPage() {
   const kpi = useQuery({
     queryKey: ['kpi'],
     queryFn: async () => (await apiClient<KpiData>('/admin/dashboard/kpi')).data!,
+    refetchOnWindowFocus: true,
   });
   const sales = useQuery({
     queryKey: ['sales'],
     queryFn: async () => (await apiClient<SalePoint[]>('/admin/dashboard/sales')).data || [],
+    refetchOnWindowFocus: true,
   });
   const top = useQuery({
     queryKey: ['top-products'],
@@ -39,6 +41,7 @@ export default function DashboardPage() {
   const tx = useQuery({
     queryKey: ['transactions-preview'],
     queryFn: async () => ((await apiClient<Transaction[]>('/admin/transactions')).data || []).slice(0, 8),
+    refetchOnWindowFocus: true,
   });
   const recs = useQuery({
     queryKey: ['recs-preview'],
@@ -64,15 +67,26 @@ export default function DashboardPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-        <button
-          onClick={() => { kpi.refetch(); sales.refetch(); top.refetch(); tx.refetch(); recs.refetch(); }}
-          disabled={loading}
-          className="flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50 disabled:opacity-50"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Refresh
-        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+          <p className="text-xs text-gray-400 mt-1">Setelah POS/WhatsApp YA — klik Refresh (atau kembali ke tab ini).</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/pos"
+            className="hidden sm:inline-flex px-3 py-2 text-sm border rounded-lg hover:bg-gray-50 text-primary font-medium"
+          >
+            POS demo
+          </Link>
+          <button
+            onClick={() => { kpi.refetch(); sales.refetch(); top.refetch(); tx.refetch(); recs.refetch(); }}
+            disabled={loading}
+            className="flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50 disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
