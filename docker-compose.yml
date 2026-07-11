@@ -135,3 +135,7 @@ volumes:
   pgdata:
   minio_data:
   evolution_data:
+
+networks:
+  default:
+    name: koptumbuh-network
