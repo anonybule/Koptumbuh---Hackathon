@@ -168,3 +168,59 @@ async def answer_knowledge_question(question: str, articles: list) -> str:
         return response.text
     except Exception:
         return "Maaf, terjadi kesalahan. Silakan coba lagi atau hubungi pengurus koperasi."
+
+
+BI_INSIGHT_SCHEMA = types.Schema(
+    type=types.Type.OBJECT,
+    properties={
+        "headline": types.Schema(type=types.Type.STRING),
+        "summary": types.Schema(type=types.Type.STRING),
+        "actions": types.Schema(
+            type=types.Type.ARRAY,
+            items=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "priority": types.Schema(type=types.Type.STRING, enum=["HIGH", "MED", "LOW"]),
+                    "title": types.Schema(type=types.Type.STRING),
+                    "detail": types.Schema(type=types.Type.STRING),
+                    "href": types.Schema(type=types.Type.STRING),
+                },
+                required=["priority", "title", "detail", "href"],
+            ),
+        ),
+        "risks": types.Schema(
+            type=types.Type.ARRAY,
+            items=types.Schema(type=types.Type.STRING),
+        ),
+    },
+    required=["headline", "summary", "actions", "risks"],
+)
+
+
+async def generate_bi_insights(metrics: dict) -> dict | None:
+    """Gemini briefing from structured BI metrics. Returns None if Gemini unavailable."""
+    if not settings.GEMINI_API_KEY:
+        return None
+
+    config = types.GenerateContentConfig(
+        temperature=0.2,
+        max_output_tokens=800,
+        response_mime_type="application/json",
+        response_schema=BI_INSIGHT_SCHEMA,
+        system_instruction=(
+            "Anda adalah analis BI untuk koperasi desa Indonesia (Kopdes). "
+            "Berdasarkan metrik JSON, buat ringkasan operasional singkat dalam Bahasa Indonesia. "
+            "Maksimal 3 aksi konkret. href harus salah satu: "
+            "/supply, /inventory, /customer-relationship, /shu, /transactions, /recommendations, /automations, /network-supply. "
+            "Jangan mengarang angka di luar metrik. Fokus pada aksi yang bisa dilakukan hari ini."
+        ),
+    )
+    try:
+        response = _get_client().models.generate_content(
+            model=settings.GEMINI_MODEL,
+            contents=[f"Metrik koperasi hari ini:\n{json.dumps(metrics, ensure_ascii=False, default=str)}"],
+            config=config,
+        )
+        return json.loads(response.text)
+    except Exception:
+        return None
