@@ -124,20 +124,32 @@ async def receive_whatsapp(request: Request, payload: dict, db: AsyncSession = D
     """
     _verify_evolution_apikey(request)
 
-    # Ignore non-message events
-    if payload.get("event") != "messages.upsert":
-        return ApiResponse(data={"status": "ignored"})
+    # Ignore non-message events (Evolution may send MESSAGES_UPSERT or messages.upsert)
+    event = str(payload.get("event") or "").lower().replace("_", ".")
+    if event not in ("messages.upsert", "messages.update"):
+        if "messages.upsert" not in event and payload.get("event") not in (
+            "messages.upsert",
+            "MESSAGES_UPSERT",
+        ):
+            return ApiResponse(data={"status": "ignored", "event": payload.get("event")})
 
     data = payload.get("data", {})
     if not data or not isinstance(data, dict):
         return ApiResponse(data={"status": "invalid_payload"})
 
-    message_id = data.get("key", {}).get("id", "")
+    key = data.get("key") or {}
+    if key.get("fromMe") is True:
+        return ApiResponse(data={"status": "ignored_own"})
+
+    message_id = key.get("id", "")
     if not message_id:
         return ApiResponse(data={"status": "invalid_message_id"})
 
-    sender_raw = data.get("key", {}).get("remoteJid", "")
+    sender_raw = key.get("remoteJid", "")
     sender_phone = sender_raw.split("@")[0] if "@" in sender_raw else sender_raw
+    # Strip WhatsApp LID / device suffixes if present
+    if ":" in sender_phone:
+        sender_phone = sender_phone.split(":")[0]
     if not sender_phone:
         return ApiResponse(data={"status": "invalid_sender"})
 

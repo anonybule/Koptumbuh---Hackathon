@@ -75,8 +75,10 @@ services:
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minio_admin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minio_password}
-      EVOLUTION_API_URL: http://evolution:8080
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL:-https://evolution.jasaai.io}
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-koptumbuh-evolution-key}
+      EVOLUTION_INSTANCE: ${EVOLUTION_INSTANCE:-koptumbuh}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-koptumbuh_webhook_secret}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-hackathon-jasaai-2026}
     depends_on:
@@ -94,8 +96,10 @@ services:
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minio_admin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minio_password}
-      EVOLUTION_API_URL: http://evolution:8080
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL:-https://evolution.jasaai.io}
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-koptumbuh-evolution-key}
+      EVOLUTION_INSTANCE: ${EVOLUTION_INSTANCE:-koptumbuh}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-koptumbuh_webhook_secret}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-hackathon-jasaai-2026}
     depends_on:
@@ -110,8 +114,10 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://dev_admin:${DB_PASSWORD:-devpassword}@postgres:5432/koptumbuh_dev
       REDIS_URL: redis://redis:6379/0
-      EVOLUTION_API_URL: http://evolution:8080
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL:-https://evolution.jasaai.io}
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-koptumbuh-evolution-key}
+      EVOLUTION_INSTANCE: ${EVOLUTION_INSTANCE:-koptumbuh}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-koptumbuh_webhook_secret}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-hackathon-jasaai-2026}
     depends_on:
