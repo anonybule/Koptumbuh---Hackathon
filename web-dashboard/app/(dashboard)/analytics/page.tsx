@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import { apiClient } from '../../../lib/api';
 import { formatRp } from '../../../lib/format';
 import { Card, ErrorState, LoadingState } from '../../../components/ui';
@@ -192,7 +193,12 @@ export default function AnalyticsPage() {
         </Card>
 
         <Card className="overflow-hidden">
-          <div className="p-4 border-b font-semibold">Segmentasi RFM</div>
+          <div className="p-4 border-b font-semibold flex items-center justify-between gap-2">
+            <span>Segmentasi RFM</span>
+            <Link href="/customer-relationship" className="text-xs text-primary hover:underline font-normal">
+              Customer Relationship →
+            </Link>
+          </div>
           {segments.isLoading ? <LoadingState /> : (
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b"><tr>

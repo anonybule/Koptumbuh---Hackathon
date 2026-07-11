@@ -7,12 +7,15 @@ import {
   LayoutDashboard, ShoppingCart, Package, Truck, Users, Building2,
   Landmark, BarChart3, LogOut, Menu, BookOpen, Bell,
   Lightbulb, Download, UserCog, MapPin, Receipt, Wallet, FileText, Settings,
+  HeartHandshake, MessageSquare,
 } from 'lucide-react';
 import { clearTokens } from '../../lib/api';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { href: '/customer-relationship', label: 'Customer Relationship', icon: HeartHandshake },
+  { href: '/chathub', label: 'ChatHub', icon: MessageSquare },
   { href: '/pos', label: 'POS Kasir', icon: ShoppingCart },
   { href: '/transactions', label: 'Transaksi', icon: Receipt },
   { href: '/inventory', label: 'Inventaris', icon: Package },

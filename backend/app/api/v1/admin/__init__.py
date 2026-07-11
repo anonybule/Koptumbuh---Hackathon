@@ -14,6 +14,7 @@ from app.api.v1.admin.export import router as export_router
 from app.api.v1.admin.transactions import router as transactions_router
 from app.api.v1.admin.loans import router as loans_router
 from app.api.v1.admin.pos import router as pos_router
+from app.api.v1.admin.chathub import router as chathub_router
 
 router = APIRouter()
 router.include_router(dashboard_router)
@@ -31,3 +32,4 @@ router.include_router(export_router)
 router.include_router(transactions_router)
 router.include_router(loans_router)
 router.include_router(pos_router)
+router.include_router(chathub_router)
