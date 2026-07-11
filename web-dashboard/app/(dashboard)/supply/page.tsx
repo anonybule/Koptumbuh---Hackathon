@@ -140,6 +140,12 @@ export default function SupplyPage() {
         </div>
         <div className="flex gap-2">
           <Link
+            href="/network-supply"
+            className="inline-flex items-center gap-1.5 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50"
+          >
+            Network multi-Kopdes
+          </Link>
+          <Link
             href="/automations"
             className="inline-flex items-center gap-1.5 px-3 py-2 border rounded-lg text-sm hover:bg-gray-50"
           >

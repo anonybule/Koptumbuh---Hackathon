@@ -16,7 +16,8 @@ from app.api.v1.admin.loans import router as loans_router
 from app.api.v1.admin.pos import router as pos_router
 from app.api.v1.admin.chathub import router as chathub_router
 from app.api.v1.admin.automations import router as automations_router
-from app.api.v1.admin.review import router as review_router
+from app.api.v1.admin.ops import router as ops_router
+from app.api.v1.admin.network_supply import router as network_supply_router
 
 router = APIRouter()
 router.include_router(dashboard_router)
@@ -36,4 +37,5 @@ router.include_router(loans_router)
 router.include_router(pos_router)
 router.include_router(chathub_router)
 router.include_router(automations_router)
-router.include_router(review_router)
+router.include_router(ops_router)
+router.include_router(network_supply_router)

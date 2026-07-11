@@ -4,7 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../lib/api';
 import { formatRp } from '../../lib/format';
 import { Card, ErrorState, LoadingState, Badge } from '../../components/ui';
-import { TrendingUp, ShoppingCart, AlertTriangle, Users, Lightbulb, RefreshCw } from 'lucide-react';
+import {
+  TrendingUp, ShoppingCart, AlertTriangle, Users, Lightbulb, RefreshCw,
+  MessageSquare, Package, Bot, ArrowRight,
+} from 'lucide-react';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   BarChart, Bar,
@@ -22,11 +25,29 @@ interface SalePoint { date: string; revenue: number; count: number }
 interface TopProduct { name: string; qty: number; revenue: number }
 interface Transaction { id: string; customer: string; total: number; status: string; method: string; date: string }
 interface Recommendation { id: string; jenis: string; judul: string; isi: string; priority: string; status: string }
+interface PipelineStage {
+  id: string;
+  label: string;
+  count: number;
+  href: string;
+  tone: string;
+}
+
+function stageTone(tone: string): 'green' | 'yellow' | 'red' | 'blue' | 'gray' {
+  if (tone === 'green' || tone === 'yellow' || tone === 'red' || tone === 'blue') return tone;
+  return 'gray';
+}
 
 export default function DashboardPage() {
   const kpi = useQuery({
     queryKey: ['kpi'],
     queryFn: async () => (await apiClient<KpiData>('/admin/dashboard/kpi')).data!,
+    refetchOnWindowFocus: true,
+  });
+  const pipeline = useQuery({
+    queryKey: ['ops-pipeline'],
+    queryFn: async () => (await apiClient<{ stages: PipelineStage[] }>('/admin/ops/pipeline')).data!,
+    refetchInterval: 20000,
     refetchOnWindowFocus: true,
   });
   const sales = useQuery({
@@ -60,8 +81,17 @@ export default function DashboardPage() {
 
   const salesChart = [...(sales.data || [])].reverse();
 
+  const refreshAll = () => {
+    kpi.refetch();
+    pipeline.refetch();
+    sales.refetch();
+    top.refetch();
+    tx.refetch();
+    recs.refetch();
+  };
+
   if (error) {
-    return <ErrorState onRetry={() => { kpi.refetch(); sales.refetch(); top.refetch(); tx.refetch(); recs.refetch(); }} />;
+    return <ErrorState onRetry={refreshAll} />;
   }
 
   return (
@@ -69,12 +99,20 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-          <p className="text-xs text-gray-400 mt-1">Setelah POS/WhatsApp YA — klik Refresh (atau kembali ke tab ini).</p>
+          <p className="text-xs text-gray-400 mt-1">
+            Loop operasional: WhatsApp → YA → stok → restock/PO → notifikasi.
+          </p>
           <p className="inline-flex mt-2 text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-full px-2.5 py-1">
             No AI Math — harga &amp; total selalu dari database
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/automations"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+          >
+            <Bot size={14} /> Automasi
+          </Link>
           <Link
             href="/pos"
             className="hidden sm:inline-flex px-3 py-2 text-sm border rounded-lg hover:bg-gray-50 text-primary font-medium"
@@ -82,7 +120,7 @@ export default function DashboardPage() {
             POS demo
           </Link>
           <button
-            onClick={() => { kpi.refetch(); sales.refetch(); top.refetch(); tx.refetch(); recs.refetch(); }}
+            onClick={refreshAll}
             disabled={loading}
             className="flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50 disabled:opacity-50"
           >
@@ -91,6 +129,34 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      <Card className="p-4 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-gray-800">Pipeline operasional</h2>
+          <Link href="/transactions?tab=inbox" className="text-xs text-primary hover:underline inline-flex items-center gap-1">
+            Inbox WA <ArrowRight size={12} />
+          </Link>
+        </div>
+        {pipeline.isLoading ? (
+          <LoadingState />
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2">
+            {(pipeline.data?.stages || []).map((s) => (
+              <Link
+                key={s.id}
+                href={s.href}
+                className="rounded-lg border border-gray-100 bg-gray-50/80 hover:border-primary/40 hover:bg-primary/5 p-3 transition"
+              >
+                <p className="text-[11px] text-gray-500 leading-tight mb-1">{s.label}</p>
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-xl font-bold text-gray-800">{s.count}</p>
+                  <Badge tone={stageTone(s.tone)}>{s.count > 0 ? 'live' : '—'}</Badge>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {cards.map((card) => (
@@ -206,10 +272,10 @@ export default function DashboardPage() {
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Aksi Cepat</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: 'POS Kasir', href: '/pos', desc: 'Kasir di tempat' },
-            { label: 'Transaksi', href: '/transactions', desc: 'Riwayat penjualan' },
-            { label: 'Inventaris', href: '/inventory', desc: 'Stok & gudang' },
-            { label: 'Anggota', href: '/members', desc: 'Daftar anggota' },
+            { label: 'Inbox WA', href: '/transactions?tab=inbox', desc: 'Draft & YA', icon: MessageSquare },
+            { label: 'POS Kasir', href: '/pos', desc: 'Kasir di tempat', icon: ShoppingCart },
+            { label: 'Supply / PO', href: '/supply', desc: 'Restock otomatis', icon: Package },
+            { label: 'ChatHub', href: '/chathub', desc: 'WhatsApp live', icon: MessageSquare },
           ].map((action) => (
             <Link
               key={action.href}

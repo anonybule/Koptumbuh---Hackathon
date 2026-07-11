@@ -88,6 +88,18 @@ export default function ChatHubPage() {
     refetchInterval: selected ? 10000 : false,
   });
 
+  const inboxHint = useQuery({
+    queryKey: ['chathub-inbox-hint', selected?.phone],
+    enabled: !!selected?.phone,
+    queryFn: async () => {
+      const res = await apiClient<any[]>('/admin/ops/inbox?per_page=20');
+      const phone = selected?.phone || '';
+      return (res.data || []).filter(
+        (m) => String(m.sender_phone || '').includes(phone) || phone.includes(String(m.sender_phone || '').replace(/\D/g, '')),
+      ).slice(0, 3);
+    },
+  });
+
   const qr = useQuery({
     queryKey: ['chathub-qr'],
     enabled: showQr,
@@ -138,6 +150,10 @@ export default function ChatHubPage() {
           <p className="text-sm text-gray-500 mt-1">
             Inbox WhatsApp via Evolution API — instance{' '}
             <span className="font-medium text-gray-700">{status.data?.instance || '…'}</span>
+            {' · '}
+            <a href="/transactions?tab=inbox" className="text-primary hover:underline">
+              lihat parsing / YA
+            </a>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -253,6 +269,20 @@ export default function ChatHubPage() {
                   <p className="text-xs text-gray-500">{selected.phone}</p>
                 </div>
               </div>
+
+              {(inboxHint.data || []).length > 0 && (
+                <div className="px-3 py-2 border-b bg-amber-50/80 text-xs space-y-1">
+                  <p className="font-medium text-amber-900">Bot / parsing terkait kontak ini</p>
+                  {(inboxHint.data || []).map((m: any) => (
+                    <div key={m.pesan_id} className="flex flex-wrap gap-2 text-amber-800">
+                      <Badge tone="yellow">{m.stage || m.parse_status}</Badge>
+                      {m.intent && <Badge tone="blue">{m.intent}</Badge>}
+                      <span className="truncate max-w-[220px]">{m.raw_text}</span>
+                    </div>
+                  ))}
+                  <a href="/transactions?tab=inbox" className="text-primary hover:underline">Buka inbox lengkap →</a>
+                </div>
+              )}
 
               <div className="flex-1 overflow-y-auto p-4 space-y-2">
                 {messages.isLoading ? (

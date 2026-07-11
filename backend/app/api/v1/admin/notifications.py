@@ -29,8 +29,8 @@ async def list_notifications(
         where.append("channel=:ch")
         params["ch"] = channel
     if message_type:
-        where.append("message_type=:mt")
-        params["mt"] = message_type
+        where.append("UPPER(COALESCE(message_type,'')) LIKE :mt")
+        params["mt"] = f"%{message_type.upper()}%"
     clause = " AND ".join(where)
 
     total = (

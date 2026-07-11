@@ -377,3 +377,122 @@ UPDATE inventaris_produk SET stok = GREATEST(stok - 10, 4) WHERE produk_sample_i
 UPDATE inventaris_produk SET stok = GREATEST(stok - 5, 3) WHERE produk_sample_id = 'PROD-C3D4E5F6A1B2' AND koperasi_ref = 'KOP-JasaAI-A1B2C3D4E5F6';
 UPDATE inventaris_produk SET stok = GREATEST(stok - 7, 2) WHERE produk_sample_id = 'PROD-D4E5F6A1B2C3' AND koperasi_ref = 'KOP-JasaAI-A1B2C3D4E5F6';
 UPDATE inventaris_produk SET stok = GREATEST(stok - 4, 5) WHERE produk_sample_id = 'PROD-E5F6A1B2C3D4' AND koperasi_ref = 'KOP-JasaAI-A1B2C3D4E5F6';
+
+-- ============================================
+-- 9. NETWORK SUPPLY — sibling Kopdes in Kec. Jonggol
+-- For multi-store SCM / consolidated logistics demo
+-- ============================================
+
+INSERT INTO referensi_wilayah (kode_wilayah, provinsi, kab_kota, kecamatan, desa_kelurahan) VALUES
+    ('32.01.06.2001', 'JAWA BARAT', 'KAB. BOGOR', 'Jonggol', 'Sukamaju'),
+    ('32.01.06.2005', 'JAWA BARAT', 'KAB. BOGOR', 'Jonggol', 'Weninggalih'),
+    ('32.01.06.2012', 'JAWA BARAT', 'KAB. BOGOR', 'Jonggol', 'Singasari')
+ON CONFLICT (kode_wilayah) DO NOTHING;
+
+INSERT INTO referensi_koperasi_wilayah (koperasi_ref, kode_wilayah) VALUES
+    ('KOP-JasaAI-B2C3D4E5F6A1', '32.01.06.2001'),
+    ('KOP-JasaAI-C3D4E5F6A1B2', '32.01.06.2005'),
+    ('KOP-JasaAI-D4E5F6A1B2C3', '32.01.06.2012')
+ON CONFLICT (koperasi_ref) DO NOTHING;
+
+INSERT INTO profil_koperasi (
+    koperasi_ref, nama_koperasi, status_registrasi, bentuk_koperasi,
+    kategori_usaha, nik_koperasi, alamat_lengkap, kode_pos
+) VALUES
+    ('KOP-JasaAI-B2C3D4E5F6A1', 'KOPERASI DESA MERAH PUTIH SUKAMAJU JONGGOL',
+     'Approved', 'Primer', 'SEMBAKO', '1234567890123457',
+     'Jl. Sukamaju Raya No. 8, Desa Sukamaju, Kec. Jonggol', '16830'),
+    ('KOP-JasaAI-C3D4E5F6A1B2', 'KOPERASI DESA MERAH PUTIH WENINGGALIH',
+     'Approved', 'Primer', 'SEMBAKO', '1234567890123458',
+     'Kp. Weninggalih, Desa Weninggalih, Kec. Jonggol', '16830'),
+    ('KOP-JasaAI-D4E5F6A1B2C3', 'KOPERASI DESA MERAH PUTIH SINGASARI',
+     'Approved', 'Primer', 'SEMBAKO', '1234567890123459',
+     'Jl. Singasari No. 15, Desa Singasari, Kec. Jonggol', '16830')
+ON CONFLICT (koperasi_ref) DO NOTHING;
+
+-- Shared SKU names across network (unique product IDs per store)
+INSERT INTO produk_koperasi (produk_sample_id, koperasi_ref, kode_barcode, nama_produk, unit) VALUES
+    ('PROD-NS-B-BERAS', 'KOP-JasaAI-B2C3D4E5F6A1', '8992001000001', 'Beras Premium 5kg', 'Kg'),
+    ('PROD-NS-B-MINYAK', 'KOP-JasaAI-B2C3D4E5F6A1', '8992002000002', 'Minyak Goreng 2L', 'Liter'),
+    ('PROD-NS-B-GULA', 'KOP-JasaAI-B2C3D4E5F6A1', '8992003000003', 'Gula Pasir 1kg', 'Kg'),
+    ('PROD-NS-B-TELUR', 'KOP-JasaAI-B2C3D4E5F6A1', '8992004000004', 'Telur Ayam 1kg', 'Kg'),
+    ('PROD-NS-C-BERAS', 'KOP-JasaAI-C3D4E5F6A1B2', '8993001000001', 'Beras Premium 5kg', 'Kg'),
+    ('PROD-NS-C-MINYAK', 'KOP-JasaAI-C3D4E5F6A1B2', '8993002000002', 'Minyak Goreng 2L', 'Liter'),
+    ('PROD-NS-C-GULA', 'KOP-JasaAI-C3D4E5F6A1B2', '8993003000003', 'Gula Pasir 1kg', 'Kg'),
+    ('PROD-NS-C-MIE', 'KOP-JasaAI-C3D4E5F6A1B2', '8993005000005', 'Mie Instan Dus', 'Dus'),
+    ('PROD-NS-D-BERAS', 'KOP-JasaAI-D4E5F6A1B2C3', '8994001000001', 'Beras Premium 5kg', 'Kg'),
+    ('PROD-NS-D-MINYAK', 'KOP-JasaAI-D4E5F6A1B2C3', '8994002000002', 'Minyak Goreng 2L', 'Liter'),
+    ('PROD-NS-D-TELUR', 'KOP-JasaAI-D4E5F6A1B2C3', '8994004000004', 'Telur Ayam 1kg', 'Kg'),
+    ('PROD-NS-D-GULA', 'KOP-JasaAI-D4E5F6A1B2C3', '8994003000003', 'Gula Pasir 1kg', 'Kg')
+ON CONFLICT (produk_sample_id) DO NOTHING;
+
+-- Critical / low stock at satellite stores (forces restock needs)
+INSERT INTO inventaris_produk (inventaris_ref, produk_sample_id, koperasi_ref, nama_produk, stok) VALUES
+    ('INV-NS-B-BERAS', 'PROD-NS-B-BERAS', 'KOP-JasaAI-B2C3D4E5F6A1', 'Beras Premium 5kg', 3),
+    ('INV-NS-B-MINYAK', 'PROD-NS-B-MINYAK', 'KOP-JasaAI-B2C3D4E5F6A1', 'Minyak Goreng 2L', 2),
+    ('INV-NS-B-GULA', 'PROD-NS-B-GULA', 'KOP-JasaAI-B2C3D4E5F6A1', 'Gula Pasir 1kg', 8),
+    ('INV-NS-B-TELUR', 'PROD-NS-B-TELUR', 'KOP-JasaAI-B2C3D4E5F6A1', 'Telur Ayam 1kg', 1),
+    ('INV-NS-C-BERAS', 'PROD-NS-C-BERAS', 'KOP-JasaAI-C3D4E5F6A1B2', 'Beras Premium 5kg', 4),
+    ('INV-NS-C-MINYAK', 'PROD-NS-C-MINYAK', 'KOP-JasaAI-C3D4E5F6A1B2', 'Minyak Goreng 2L', 12),
+    ('INV-NS-C-GULA', 'PROD-NS-C-GULA', 'KOP-JasaAI-C3D4E5F6A1B2', 'Gula Pasir 1kg', 2),
+    ('INV-NS-C-MIE', 'PROD-NS-C-MIE', 'KOP-JasaAI-C3D4E5F6A1B2', 'Mie Instan Dus', 6),
+    ('INV-NS-D-BERAS', 'PROD-NS-D-BERAS', 'KOP-JasaAI-D4E5F6A1B2C3', 'Beras Premium 5kg', 2),
+    ('INV-NS-D-MINYAK', 'PROD-NS-D-MINYAK', 'KOP-JasaAI-D4E5F6A1B2C3', 'Minyak Goreng 2L', 3),
+    ('INV-NS-D-TELUR', 'PROD-NS-D-TELUR', 'KOP-JasaAI-D4E5F6A1B2C3', 'Telur Ayam 1kg', 4),
+    ('INV-NS-D-GULA', 'PROD-NS-D-GULA', 'KOP-JasaAI-D4E5F6A1B2C3', 'Gula Pasir 1kg', 1)
+ON CONFLICT (inventaris_ref) DO NOTHING;
+
+INSERT INTO pemasok_koptumbuh (koperasi_ref, nama_pemasok, nomor_hp, alamat, lead_time_hari, payment_term)
+SELECT v.koperasi_ref, 'PT Pangan Sejahtera Nusantara (Regional Jonggol)', '628120000099',
+       'Gudang Jonggol, Kab. Bogor', 3, 'NET 14'
+FROM (VALUES
+    ('KOP-JasaAI-B2C3D4E5F6A1'),
+    ('KOP-JasaAI-C3D4E5F6A1B2'),
+    ('KOP-JasaAI-D4E5F6A1B2C3')
+) AS v(koperasi_ref)
+WHERE NOT EXISTS (
+    SELECT 1 FROM pemasok_koptumbuh p WHERE p.koperasi_ref = v.koperasi_ref
+);
+
+-- Recent outbound so ADS > 0 (triggers days_remaining restock logic)
+INSERT INTO transaksi_penjualan (
+    transaksi_sample_id, koperasi_ref, nama_pelanggan, total_pembayaran, status_transaksi, tanggal_dibuat
+) VALUES
+    ('TRX-NS-B1', 'KOP-JasaAI-B2C3D4E5F6A1', 'Pelanggan Sukamaju', 260000, 'Paid', NOW() - INTERVAL '2 days'),
+    ('TRX-NS-B2', 'KOP-JasaAI-B2C3D4E5F6A1', 'Pelanggan Sukamaju', 84000, 'Paid', NOW() - INTERVAL '1 days'),
+    ('TRX-NS-B3', 'KOP-JasaAI-B2C3D4E5F6A1', 'Pelanggan Sukamaju', 135000, 'Paid', NOW() - INTERVAL '3 days'),
+    ('TRX-NS-C1', 'KOP-JasaAI-C3D4E5F6A1B2', 'Pelanggan Weninggalih', 195000, 'Paid', NOW() - INTERVAL '2 days'),
+    ('TRX-NS-C2', 'KOP-JasaAI-C3D4E5F6A1B2', 'Pelanggan Weninggalih', 56000, 'Paid', NOW() - INTERVAL '1 days'),
+    ('TRX-NS-D1', 'KOP-JasaAI-D4E5F6A1B2C3', 'Pelanggan Singasari', 325000, 'Paid', NOW() - INTERVAL '1 days'),
+    ('TRX-NS-D2', 'KOP-JasaAI-D4E5F6A1B2C3', 'Pelanggan Singasari', 56000, 'Paid', NOW() - INTERVAL '4 days'),
+    ('TRX-NS-D3', 'KOP-JasaAI-D4E5F6A1B2C3', 'Pelanggan Singasari', 42000, 'Paid', NOW() - INTERVAL '2 days')
+ON CONFLICT (transaksi_sample_id) DO NOTHING;
+
+INSERT INTO barang_keluar_produk (
+    transaksi_sample_id, produk_sample_id, koperasi_ref, nama_produk,
+    jumlah_keluar, harga, total_nilai, status_transaksi, tanggal_keluar
+)
+SELECT * FROM (VALUES
+    ('TRX-NS-B1', 'PROD-NS-B-BERAS', 'KOP-JasaAI-B2C3D4E5F6A1', 'Beras Premium 5kg', 4::numeric, 65000::numeric, 260000::numeric, 'Paid', NOW() - INTERVAL '2 days'),
+    ('TRX-NS-B2', 'PROD-NS-B-MINYAK', 'KOP-JasaAI-B2C3D4E5F6A1', 'Minyak Goreng 2L', 3::numeric, 28000::numeric, 84000::numeric, 'Paid', NOW() - INTERVAL '1 days'),
+    ('TRX-NS-B3', 'PROD-NS-B-TELUR', 'KOP-JasaAI-B2C3D4E5F6A1', 'Telur Ayam 1kg', 5::numeric, 27000::numeric, 135000::numeric, 'Paid', NOW() - INTERVAL '3 days'),
+    ('TRX-NS-C1', 'PROD-NS-C-BERAS', 'KOP-JasaAI-C3D4E5F6A1B2', 'Beras Premium 5kg', 3::numeric, 65000::numeric, 195000::numeric, 'Paid', NOW() - INTERVAL '2 days'),
+    ('TRX-NS-C2', 'PROD-NS-C-GULA', 'KOP-JasaAI-C3D4E5F6A1B2', 'Gula Pasir 1kg', 4::numeric, 14000::numeric, 56000::numeric, 'Paid', NOW() - INTERVAL '1 days'),
+    ('TRX-NS-D1', 'PROD-NS-D-BERAS', 'KOP-JasaAI-D4E5F6A1B2C3', 'Beras Premium 5kg', 5::numeric, 65000::numeric, 325000::numeric, 'Paid', NOW() - INTERVAL '1 days'),
+    ('TRX-NS-D2', 'PROD-NS-D-MINYAK', 'KOP-JasaAI-D4E5F6A1B2C3', 'Minyak Goreng 2L', 2::numeric, 28000::numeric, 56000::numeric, 'Paid', NOW() - INTERVAL '4 days'),
+    ('TRX-NS-D3', 'PROD-NS-D-GULA', 'KOP-JasaAI-D4E5F6A1B2C3', 'Gula Pasir 1kg', 3::numeric, 14000::numeric, 42000::numeric, 'Paid', NOW() - INTERVAL '2 days')
+) AS v(transaksi_sample_id, produk_sample_id, koperasi_ref, nama_produk, jumlah_keluar, harga, total_nilai, status_transaksi, tanggal_keluar)
+WHERE NOT EXISTS (
+    SELECT 1 FROM barang_keluar_produk b
+    WHERE b.transaksi_sample_id = v.transaksi_sample_id AND b.produk_sample_id = v.produk_sample_id
+);
+
+INSERT INTO barang_masuk_produk (
+    barang_masuk_ref, produk_sample_id, koperasi_ref, nama_produk,
+    jumlah_masuk, jumlah_tersedia, harga_beli, harga_jual, total_biaya, status, tanggal_masuk
+) VALUES
+    ('BM-NS-B-BERAS', 'PROD-NS-B-BERAS', 'KOP-JasaAI-B2C3D4E5F6A1', 'Beras Premium 5kg', 20, 3, 55000, 65000, 1100000, 'Diterima', NOW() - INTERVAL '20 days'),
+    ('BM-NS-B-MINYAK', 'PROD-NS-B-MINYAK', 'KOP-JasaAI-B2C3D4E5F6A1', 'Minyak Goreng 2L', 15, 2, 24000, 28000, 360000, 'Diterima', NOW() - INTERVAL '18 days'),
+    ('BM-NS-C-BERAS', 'PROD-NS-C-BERAS', 'KOP-JasaAI-C3D4E5F6A1B2', 'Beras Premium 5kg', 20, 4, 55000, 65000, 1100000, 'Diterima', NOW() - INTERVAL '15 days'),
+    ('BM-NS-D-BERAS', 'PROD-NS-D-BERAS', 'KOP-JasaAI-D4E5F6A1B2C3', 'Beras Premium 5kg', 25, 2, 55000, 65000, 1375000, 'Diterima', NOW() - INTERVAL '12 days')
+ON CONFLICT (barang_masuk_ref) DO NOTHING;

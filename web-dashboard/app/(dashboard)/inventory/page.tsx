@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../../lib/api';
 import { Card, ErrorState, LoadingState, Badge, EmptyState } from '../../../components/ui';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Truck } from 'lucide-react';
 
 interface InventoryItem {
   id: string;
@@ -33,6 +33,14 @@ export default function InventoryPage() {
       return res.data || [];
     },
   });
+
+  const pipeline = useQuery({
+    queryKey: ['ops-pipeline-inv'],
+    queryFn: async () => (await apiClient<{ stages: { id: string; count: number }[] }>('/admin/ops/pipeline')).data!,
+  });
+
+  const draftPo = pipeline.data?.stages?.find((s) => s.id === 'draft_po')?.count || 0;
+  const lowCount = (data || []).filter((i) => i.low_stock || i.stock < 5).length;
 
   const addMutation = useMutation({
     mutationFn: async () => {
@@ -63,14 +71,40 @@ export default function InventoryPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">Inventaris</h1>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/80"
-        >
-          <Plus size={18} /> Tambah Produk
-        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Inventaris</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Stok turun setelah YA/POS; naik setelah PO diterima / restock.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Link
+            href="/supply"
+            className="flex items-center gap-2 border px-4 py-2 rounded-lg text-sm hover:bg-gray-50"
+          >
+            <Truck size={16} /> Supply / PO
+          </Link>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/80"
+          >
+            <Plus size={18} /> Tambah Produk
+          </button>
+        </div>
       </div>
+
+      {(lowCount > 0 || draftPo > 0) && (
+        <Card className="p-4 mb-4 flex flex-wrap items-center justify-between gap-3 bg-amber-50/60 border-amber-100">
+          <p className="text-sm text-amber-900">
+            {lowCount > 0 && <span><strong>{lowCount}</strong> produk stok rendah. </span>}
+            {draftPo > 0 && <span><strong>{draftPo}</strong> PO draft menunggu kirim/terima. </span>}
+            Setelah PO ditandai diterima, cek detail produk untuk melihat pergerakan masuk.
+          </p>
+          <Link href="/supply" className="text-sm font-medium text-primary hover:underline">
+            Buka rencana restock →
+          </Link>
+        </Card>
+      )}
 
       {showForm && (
         <Card className="p-4 mb-4 grid grid-cols-2 md:grid-cols-5 gap-3">
