@@ -1,25 +1,6 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: koptumbuh-db
-    environment:
-      POSTGRES_DB: koptumbuh_dev
-      POSTGRES_USER: dev_admin
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-devpassword}
-    ports:
-      - "5433:5432"
-    volumes:
-      - pgdata_fresh:/var/lib/postgresql/data
-      - ./database/koptumbuh_updated_minimal_data_model.sql:/docker-entrypoint-initdb.d/01_schema.sql
-      - ./database/seed_demo.sql:/docker-entrypoint-initdb.d/02_seed.sql
-      - ./database/migrations.sql:/docker-entrypoint-initdb.d/03_migrations.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dev_admin -d koptumbuh_dev"]
-      interval: 5s
-      retries: 5
-
   redis:
     image: redis:7-alpine
     container_name: koptumbuh-cache
@@ -81,7 +62,6 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-hackathon-jasaai-2026}
       CORS_ORIGINS: ${CORS_ORIGINS:-["*"]}
     depends_on:
-      postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
 
   worker:
@@ -100,7 +80,6 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-hackathon-jasaai-2026}
     depends_on:
-      postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
 
   beat:
@@ -117,7 +96,6 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-hackathon-jasaai-2026}
     depends_on:
-      postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
 
   web:
@@ -132,31 +110,7 @@ services:
     depends_on:
       - api
 
-  db-init:
-    image: postgres:15-alpine
-    container_name: koptumbuh-db-init
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - ./database/koptumbuh_updated_minimal_data_model.sql:/init/01_schema.sql:ro
-      - ./database/seed_demo.sql:/init/02_seed.sql:ro
-      - ./database/migrations.sql:/init/03_migrations.sql:ro
-    entrypoint:
-      - sh
-      - -c
-      - |
-        echo "Running DDL..."
-        PGPASSWORD=devpassword psql -h 76.13.22.127 -p 5434 -U dev_admin -d koptumbuh_dev -f /init/01_schema.sql
-        echo "Running seed..."
-        PGPASSWORD=devpassword psql -h 76.13.22.127 -p 5434 -U dev_admin -d koptumbuh_dev -f /init/02_seed.sql
-        echo "Running migrations..."
-        PGPASSWORD=devpassword psql -h 76.13.22.127 -p 5434 -U dev_admin -d koptumbuh_dev -f /init/03_migrations.sql
-        echo "DB init complete"
-    restart: "no"
-
 volumes:
-  pgdata_fresh:
   minio_data:
   evolution_data:
 
