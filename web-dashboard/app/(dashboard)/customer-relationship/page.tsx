@@ -72,13 +72,21 @@ export default function CustomerRelationshipPage() {
             Segmentasi RFM, retensi anggota, dan tindak lanjut lewat WhatsApp.
           </p>
         </div>
-        <Link
-          href="/chathub"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm"
-        >
-          <MessageCircle size={16} />
-          Buka ChatHub
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/automations"
+            className="inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm hover:bg-gray-50"
+          >
+            Automasi hubungan
+          </Link>
+          <Link
+            href="/chathub"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm"
+          >
+            <MessageCircle size={16} />
+            Buka ChatHub
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
