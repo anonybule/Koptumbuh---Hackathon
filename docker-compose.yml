@@ -11,7 +11,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata2:/var/lib/postgresql/data
       - ./database/koptumbuh_updated_minimal_data_model.sql:/docker-entrypoint-initdb.d/01_schema.sql
       - ./database/seed_demo.sql:/docker-entrypoint-initdb.d/02_seed.sql
     healthcheck:
@@ -132,7 +132,7 @@ services:
       - api
 
 volumes:
-  pgdata:
+  pgdata2:
   minio_data:
   evolution_data:
 
