@@ -228,13 +228,42 @@ SELECT p.produk_sample_id, p.nama_produk, o.harga_jual AS harga_kita, m.rata AS 
     CASE WHEN m.rata IS NULL THEN 'NO_DATA' WHEN o.harga_jual <= m.rata THEN 'TERMURAH' ELSE 'LEBIH_MAHAL' END AS status_harga
 FROM koptumbuh.produk_koperasi p JOIN our o ON o.produk_sample_id = p.produk_sample_id LEFT JOIN market m ON m.produk_sample_id = p.produk_sample_id;
 
--- Real-time SHU Estimation
+-- Real-time SHU Estimation (pendapatan - HPP - beban)
 CREATE OR REPLACE VIEW koptumbuh.v_shu_estimasi AS
-SELECT t.koperasi_ref, DATE_TRUNC('month', COALESCE(t.tanggal_dibuat, t.dibuat_pada)) AS bulan,
-    SUM(COALESCE(t.total_pembayaran,0)) AS total_omzet, COUNT(*) AS jumlah_transaksi,
-    SUM(COALESCE(t.total_pembayaran,0)) * 0.85 AS estimasi_shu
-FROM koptumbuh.transaksi_penjualan t WHERE COALESCE(t.status_transaksi,'') NOT IN ('Refund','Cancelled')
-GROUP BY t.koperasi_ref, DATE_TRUNC('month', COALESCE(t.tanggal_dibuat, t.dibuat_pada)) ORDER BY bulan DESC;
+WITH rev AS (
+  SELECT t.koperasi_ref,
+    DATE_TRUNC('month', COALESCE(t.tanggal_dibuat, t.dibuat_pada)) AS bulan,
+    SUM(COALESCE(t.total_pembayaran,0)) AS total_omzet,
+    COUNT(*) AS jumlah_transaksi
+  FROM koptumbuh.transaksi_penjualan t
+  WHERE COALESCE(t.status_transaksi,'') NOT IN ('Refund','Cancelled')
+  GROUP BY t.koperasi_ref, DATE_TRUNC('month', COALESCE(t.tanggal_dibuat, t.dibuat_pada))
+),
+hpp AS (
+  SELECT bk.koperasi_ref,
+    DATE_TRUNC('month', COALESCE(bk.tanggal_keluar, bk.dibuat_pada)) AS bulan,
+    SUM(COALESCE(bk.jumlah_keluar,0) * COALESCE(bp.harga_beli,0)) AS estimasi_hpp
+  FROM koptumbuh.barang_keluar_produk bk
+  LEFT JOIN LATERAL (
+    SELECT harga_beli FROM koptumbuh.barang_masuk_produk bm
+    WHERE bm.produk_sample_id=bk.produk_sample_id AND bm.koperasi_ref=bk.koperasi_ref
+    ORDER BY bm.tanggal_masuk DESC NULLS LAST LIMIT 1
+  ) bp ON TRUE
+  WHERE COALESCE(bk.status_transaksi,'') NOT IN ('Refund','Cancelled')
+  GROUP BY bk.koperasi_ref, DATE_TRUNC('month', COALESCE(bk.tanggal_keluar, bk.dibuat_pada))
+)
+SELECT r.koperasi_ref, r.bulan, r.total_omzet, r.jumlah_transaksi,
+  COALESCE(h.estimasi_hpp, r.total_omzet * 0.70) AS estimasi_hpp,
+  ROUND(
+    CASE
+      WHEN (r.total_omzet - COALESCE(h.estimasi_hpp, r.total_omzet * 0.70) - r.total_omzet * 0.08) > 0
+      THEN (r.total_omzet - COALESCE(h.estimasi_hpp, r.total_omzet * 0.70) - r.total_omzet * 0.08) * 0.98
+      ELSE (r.total_omzet - COALESCE(h.estimasi_hpp, r.total_omzet * 0.70) - r.total_omzet * 0.08)
+    END
+  , 2) AS estimasi_shu
+FROM rev r
+LEFT JOIN hpp h ON h.koperasi_ref=r.koperasi_ref AND h.bulan=r.bulan
+ORDER BY r.bulan DESC;
 
 -- Credit Receivables
 CREATE OR REPLACE VIEW koptumbuh.v_piutang_anggota AS

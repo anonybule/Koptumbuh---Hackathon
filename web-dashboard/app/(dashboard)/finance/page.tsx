@@ -1,13 +1,21 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../../lib/api';
 import { formatRp, formatDate } from '../../../lib/format';
 import { Card, ErrorState, LoadingState, Tabs, EmptyState, Badge } from '../../../components/ui';
 
 export default function FinancePage() {
-  const [tab, setTab] = useState('bank');
+  const [tab, setTab] = useState('shu');
+  const year = new Date().getFullYear();
+
+  const shu = useQuery({
+    queryKey: ['finance-shu', year],
+    queryFn: async () => (await apiClient<any>(`/admin/shu/summary?year=${year}`)).data,
+    enabled: tab === 'shu',
+  });
 
   const bank = useQuery({
     queryKey: ['finance-bank'],
@@ -42,9 +50,13 @@ export default function FinancePage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Keuangan</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Keuangan</h1>
+        <Link href="/shu" className="text-sm text-primary hover:underline">Buka halaman SHU lengkap →</Link>
+      </div>
       <Tabs
         tabs={[
+          { id: 'shu', label: 'SHU' },
           { id: 'bank', label: 'Rekening Bank' },
           { id: 'capital', label: 'Modal' },
           { id: 'apps', label: 'Pengajuan' },
@@ -52,6 +64,47 @@ export default function FinancePage() {
         active={tab}
         onChange={setTab}
       />
+
+      {tab === 'shu' && (
+        <Card className="p-5">
+          {shu.isError ? <ErrorState onRetry={() => shu.refetch()} /> :
+           shu.isLoading ? <LoadingState /> : (
+            <div>
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <Badge tone={shu.data?.hasil === 'PROFIT' ? 'green' : 'red'}>{shu.data?.hasil}</Badge>
+                <span className="text-sm text-gray-500">Tahun {shu.data?.tahun}</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <div>
+                  <p className="text-xs text-gray-500">Pendapatan</p>
+                  <p className="font-bold">{formatRp(shu.data?.pendapatan || 0)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">HPP</p>
+                  <p className="font-bold">{formatRp(shu.data?.hpp || 0)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">SHU bersih</p>
+                  <p className="font-bold text-primary">{formatRp(shu.data?.shu_bersih || 0)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Margin</p>
+                  <p className="font-bold">{shu.data?.margin_shu_pct ?? 0}%</p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 mb-3">
+                Alokasi: jasa anggota {formatRp(shu.data?.pools?.jasa_anggota || 0)} · jasa modal{' '}
+                {formatRp(shu.data?.pools?.jasa_modal || 0)} · cadangan{' '}
+                {formatRp(shu.data?.pools?.dana_cadangan || 0)} · sosial{' '}
+                {formatRp(shu.data?.pools?.dana_sosial || 0)}
+              </p>
+              <Link href="/shu" className="text-sm font-medium text-primary hover:underline">
+                Lihat breakdown bulanan & per anggota →
+              </Link>
+            </div>
+           )}
+        </Card>
+      )}
 
       {tab === 'bank' && (
         <Card className="overflow-hidden">

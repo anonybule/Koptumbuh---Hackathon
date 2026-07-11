@@ -338,18 +338,11 @@ async def retention(user: dict = Depends(get_current_user), db: AsyncSession = D
 
 
 async def _shu_rows(db: AsyncSession, koperasi_ref: str):
-    return await _fetch_or_fallback(
-        db,
-        "SELECT bulan, total_omzet, jumlah_transaksi, estimasi_shu "
-        "FROM koptumbuh.v_shu_estimasi WHERE koperasi_ref=:r ORDER BY bulan DESC",
-        "SELECT DATE_TRUNC('month', COALESCE(tanggal_dibuat, dibuat_pada)) AS bulan, "
-        "SUM(COALESCE(total_pembayaran,0)), COUNT(*), "
-        "SUM(COALESCE(total_pembayaran,0)) * 0.85 "
-        "FROM koptumbuh.transaksi_penjualan "
-        "WHERE koperasi_ref=:r AND COALESCE(status_transaksi,'') NOT IN ('Refund','Cancelled') "
-        "GROUP BY 1 ORDER BY 1 DESC",
-        {"r": koperasi_ref},
-    )
+    from app.services.shu_service import compute_shu_monthly
+
+    rows = await compute_shu_monthly(db, koperasi_ref)
+    # Adapt to legacy tuple shape for _format_shu
+    return [(r["bulan"], r["total_omzet"], r["jumlah_transaksi"], r["estimasi_shu"]) for r in rows]
 
 
 def _format_shu(rows) -> list[dict]:

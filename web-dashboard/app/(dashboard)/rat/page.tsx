@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../../lib/api';
 import { formatRp } from '../../../lib/format';
@@ -46,7 +47,10 @@ export default function RatPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Rapat Anggota Tahunan (RAT)</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Rapat Anggota Tahunan (RAT)</h1>
+        <Link href="/shu" className="text-sm text-primary hover:underline">Buka kalkulasi SHU lengkap →</Link>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card className="p-4">
@@ -56,6 +60,7 @@ export default function RatPage() {
         <Card className="p-4">
           <p className="text-sm text-gray-500">Estimasi SHU (bulan terakhir)</p>
           <p className="text-xl font-bold">{formatRp(latestShu?.estimasi_shu || 0)}</p>
+          <Link href="/shu" className="text-xs text-primary hover:underline mt-1 inline-block">Detail & alokasi anggota</Link>
         </Card>
         <Card className="p-4">
           <p className="text-sm text-gray-500">Jumlah RAT</p>

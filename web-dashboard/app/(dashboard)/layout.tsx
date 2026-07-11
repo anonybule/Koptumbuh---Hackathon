@@ -7,7 +7,7 @@ import {
   LayoutDashboard, ShoppingCart, Package, Truck, Users, Building2,
   Landmark, BarChart3, LogOut, Menu, BookOpen, Bell,
   Lightbulb, Download, UserCog, MapPin, Receipt, Wallet, FileText, Settings,
-  PanelLeftClose, PanelLeftOpen, X, HeartHandshake, MessageSquare, Bot, Network,
+  PanelLeftClose, PanelLeftOpen, X, HeartHandshake, MessageSquare, Bot, Network, Calculator,
 } from 'lucide-react';
 import { clearTokens } from '../../lib/api';
 
@@ -26,6 +26,7 @@ const navItems = [
   { href: '/loans', label: 'Pinjaman', icon: Wallet },
   { href: '/cooperatives', label: 'Koperasi', icon: Building2 },
   { href: '/rat', label: 'RAT', icon: FileText },
+  { href: '/shu', label: 'SHU', icon: Calculator },
   { href: '/finance', label: 'Keuangan', icon: Landmark },
   { href: '/village', label: 'Desa', icon: MapPin },
   { href: '/knowledge', label: 'Pengetahuan', icon: BookOpen },

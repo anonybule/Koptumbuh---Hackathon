@@ -18,6 +18,7 @@ from app.api.v1.admin.chathub import router as chathub_router
 from app.api.v1.admin.automations import router as automations_router
 from app.api.v1.admin.ops import router as ops_router
 from app.api.v1.admin.network_supply import router as network_supply_router
+from app.api.v1.admin.shu import router as shu_router
 
 router = APIRouter()
 router.include_router(dashboard_router)
@@ -39,3 +40,4 @@ router.include_router(chathub_router)
 router.include_router(automations_router)
 router.include_router(ops_router)
 router.include_router(network_supply_router)
+router.include_router(shu_router)
