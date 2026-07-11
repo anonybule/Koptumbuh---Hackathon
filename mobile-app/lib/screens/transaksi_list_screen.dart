@@ -79,7 +79,7 @@ class _TransaksiListScreenState extends State<TransaksiListScreen> {
             : _error != null
                 ? ListView(children: [EmptyState(_error!)])
                 : _items.isEmpty
-                    ? ListView(children: const [EmptyState('Belum ada transaksi.')])
+                    ? ListView(children: const [EmptyState('Belum ada transaksi. Catat via POS web atau WhatsApp YA.')])
                     : ListView.builder(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                         itemCount: _items.length,

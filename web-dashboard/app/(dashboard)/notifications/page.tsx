@@ -4,9 +4,16 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../../lib/api';
 import { formatDate } from '../../../lib/format';
 import { Card, ErrorState, LoadingState, EmptyState, Badge } from '../../../components/ui';
+import { RefreshCw } from 'lucide-react';
+
+function truncate(text: string | undefined, max = 180) {
+  if (!text) return '';
+  const clean = text.replace(/\s+/g, ' ').trim();
+  return clean.length > max ? `${clean.slice(0, max)}…` : clean;
+}
 
 export default function NotificationsPage() {
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => (await apiClient<any[]>('/admin/notifications')).data || [],
   });
@@ -15,10 +22,20 @@ export default function NotificationsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Notifikasi</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Notifikasi</h1>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="inline-flex items-center gap-2 text-sm border rounded-lg px-3 py-2 hover:bg-gray-50"
+        >
+          <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+          Refresh
+        </button>
+      </div>
       <Card className="overflow-hidden">
         {isLoading ? <LoadingState /> : (data || []).length === 0 ? (
-          <EmptyState message="Belum ada notifikasi." />
+          <EmptyState message="Belum ada notifikasi. Konfirmasi WhatsApp akan muncul di sini." />
         ) : (
           <div className="divide-y">
             {(data || []).map((n) => (
@@ -32,7 +49,7 @@ export default function NotificationsPage() {
                     </Badge>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600">{n.content}</p>
+                <p className="text-sm text-gray-600 whitespace-pre-wrap">{truncate(n.content)}</p>
                 <p className="text-xs text-gray-400 mt-2">
                   {n.message_type} · {formatDate(n.created_at || n.sent_at)}
                 </p>

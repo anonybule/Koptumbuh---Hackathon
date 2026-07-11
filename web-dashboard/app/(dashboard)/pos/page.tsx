@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { apiClient } from '../../../lib/api';
+import { formatRp } from '../../../lib/format';
 import { Plus, Minus, ShoppingCart, Zap } from 'lucide-react';
 
 interface InventoryItem {
@@ -10,6 +11,7 @@ interface InventoryItem {
   name: string;
   stock: number;
   barcode?: string;
+  harga_jual?: number;
 }
 
 interface CartLine {
@@ -17,6 +19,7 @@ interface CartLine {
   name: string;
   qty: number;
   stock: number;
+  harga_jual: number;
 }
 
 export default function PosPage() {
@@ -43,7 +46,13 @@ export default function PosPage() {
 
   useEffect(() => { loadInventory(); }, []);
 
+  const cartTotal = useMemo(
+    () => cart.reduce((sum, l) => sum + l.qty * (l.harga_jual || 0), 0),
+    [cart],
+  );
+
   function addToCart(item: InventoryItem) {
+    const price = item.harga_jual || 0;
     setCart((prev) => {
       const existing = prev.find((l) => l.id === item.id);
       if (existing) {
@@ -51,7 +60,7 @@ export default function PosPage() {
         return prev.map((l) => l.id === item.id ? { ...l, qty: l.qty + 1 } : l);
       }
       if (item.stock <= 0) return prev;
-      return [...prev, { id: item.id, name: item.name, qty: 1, stock: item.stock }];
+      return [...prev, { id: item.id, name: item.name, qty: 1, stock: item.stock, harga_jual: price }];
     });
   }
 
@@ -116,7 +125,13 @@ export default function PosPage() {
     }
     setCustomer('Demo Juri');
     setPayment('Cash');
-    const line = [{ id: first.id, name: first.name, qty: 1, stock: first.stock }];
+    const line = [{
+      id: first.id,
+      name: first.name,
+      qty: 1,
+      stock: first.stock,
+      harga_jual: first.harga_jual || 0,
+    }];
     setCart(line);
     await commitSale(line, 'Demo Juri', 'Cash');
   }
@@ -128,6 +143,9 @@ export default function PosPage() {
           <h1 className="text-2xl font-bold text-gray-800">POS Kasir</h1>
           <p className="text-sm text-gray-500 mt-1">
             Fallback demo tanpa WhatsApp — commit langsung ke ledger + stok.
+          </p>
+          <p className="inline-flex mt-2 text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-full px-2.5 py-1">
+            No AI Math — harga unit dari database
           </p>
         </div>
         <button
@@ -173,11 +191,12 @@ export default function PosPage() {
                 type="button"
                 onClick={() => addToCart(item)}
                 disabled={item.stock <= 0}
-                className="w-full text-left p-4 hover:bg-gray-50 disabled:opacity-40 flex items-center justify-between"
+                className="w-full text-left p-4 hover:bg-gray-50 disabled:opacity-40 flex items-center justify-between gap-3"
               >
                 <div>
                   <p className="font-medium text-gray-800">{item.name}</p>
                   <p className="text-xs text-gray-400">{item.barcode || item.id}</p>
+                  <p className="text-xs text-emerald-700 mt-1">{formatRp(item.harga_jual || 0)} / unit (DB)</p>
                 </div>
                 <span className={`text-sm font-semibold ${item.stock < 5 ? 'text-red-600' : 'text-gray-600'}`}>
                   Stok {item.stock}
@@ -222,7 +241,9 @@ export default function PosPage() {
                 <div key={l.id} className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{l.name}</p>
-                    <p className="text-xs text-gray-400">max {l.stock}</p>
+                    <p className="text-xs text-gray-400">
+                      {formatRp(l.harga_jual)} × {l.qty} = {formatRp(l.harga_jual * l.qty)}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button type="button" onClick={() => changeQty(l.id, -1)} className="p-1 border rounded"><Minus size={14} /></button>
@@ -231,6 +252,10 @@ export default function PosPage() {
                   </div>
                 </div>
               ))}
+              <div className="pt-2 border-t flex justify-between text-sm font-semibold">
+                <span>Total (DB)</span>
+                <span>{formatRp(cartTotal)}</span>
+              </div>
             </div>
           )}
 

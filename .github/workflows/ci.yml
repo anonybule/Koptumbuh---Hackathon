@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Unit tests (normalize + offline)
+        run: pytest tests/test_normalize.py -q
+        env:
+          DATABASE_URL: postgresql+asyncpg://dev_admin:devpassword@localhost:5432/koptumbuh_dev
+          REDIS_URL: redis://localhost:6379/0
+          JWT_SECRET_KEY: hackathon-jasaai-2026
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web-dashboard/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build
+        run: npm run build

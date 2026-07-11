@@ -48,7 +48,21 @@ export default function RecommendationsPage() {
         {list.isLoading ? (
           <LoadingState />
         ) : (list.data || []).length === 0 ? (
-          <EmptyState message="Tidak ada rekomendasi. Klik Generate untuk membuat." />
+          <div className="p-10 text-center">
+            <p className="text-gray-500 mb-4">Belum ada rekomendasi di database.</p>
+            <button
+              type="button"
+              disabled={generate.isPending}
+              onClick={() => generate.mutate()}
+              className="inline-flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50"
+            >
+              <RefreshCw size={14} />
+              Generate sekarang
+            </button>
+            <p className="text-xs text-gray-400 mt-3">
+              Atau pastikan seed demo sudah memuat rekomendasi awal.
+            </p>
+          </div>
         ) : (
           <div className="divide-y">
             {(list.data || []).map((r: any) => (

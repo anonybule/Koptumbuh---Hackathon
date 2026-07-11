@@ -290,3 +290,18 @@ FROM koptumbuh.referensi_komoditas_desa;
 -- Village demographics (actual table: referensi_profil_desa)
 CREATE OR REPLACE VIEW koptumbuh.v_demografi_desa AS
 SELECT * FROM koptumbuh.referensi_profil_desa;
+
+-- ============================================
+-- Demo market prices (after harga_pasar table exists)
+-- ============================================
+INSERT INTO koptumbuh.harga_pasar (
+    produk_sample_id, nama_produk_mentah, harga, nama_toko, jenis_toko, kab_kota, sumber_data, kadaluarsa_pada
+) VALUES
+    ('PROD-A1B2C3D4E5F6', 'Beras Premium 5kg', 68000, 'Pasar Jonggol', 'PASAR', 'KAB. BOGOR', 'demo_seed', NOW() + INTERVAL '14 days'),
+    ('PROD-A1B2C3D4E5F6', 'Beras Premium 5kg', 72000, 'Indomaret Jonggol', 'MINIMARKET', 'KAB. BOGOR', 'demo_seed', NOW() + INTERVAL '14 days'),
+    ('PROD-A1B2C3D4E5F6', 'Beras Premium 5kg', 69900, 'Tokopedia Seller', 'E_COMMERCE', 'KAB. BOGOR', 'demo_seed', NOW() + INTERVAL '14 days'),
+    ('PROD-B2C3D4E5F6A1', 'Minyak Goreng 2L', 30000, 'Pasar Jonggol', 'PASAR', 'KAB. BOGOR', 'demo_seed', NOW() + INTERVAL '14 days'),
+    ('PROD-B2C3D4E5F6A1', 'Minyak Goreng 2L', 32500, 'Alfamart', 'MINIMARKET', 'KAB. BOGOR', 'demo_seed', NOW() + INTERVAL '14 days'),
+    ('PROD-C3D4E5F6A1B2', 'Gula Pasir 1kg', 15500, 'Pasar Jonggol', 'PASAR', 'KAB. BOGOR', 'demo_seed', NOW() + INTERVAL '14 days'),
+    ('PROD-D4E5F6A1B2C3', 'Telur Ayam 1kg', 29000, 'Pasar Jonggol', 'PASAR', 'KAB. BOGOR', 'demo_seed', NOW() + INTERVAL '14 days'),
+    ('PROD-E5F6A1B2C3D4', 'Mie Instan Dus', 55000, 'Grosir Bogor', 'WARUNG', 'KAB. BOGOR', 'demo_seed', NOW() + INTERVAL '14 days');

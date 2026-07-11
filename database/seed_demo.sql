@@ -5,6 +5,8 @@
 -- kode_wilayah: 32.01.06.2009
 -- ============================================
 
+SET search_path = koptumbuh, public;
+
 -- ============================================
 -- 0. ADDITIVE MIGRATIONS (post-canonical)
 -- ============================================
@@ -13,6 +15,15 @@
 ALTER TABLE koptumbuh.pengguna_koptumbuh DROP CONSTRAINT IF EXISTS pengguna_koptumbuh_role_check;
 ALTER TABLE koptumbuh.pengguna_koptumbuh ADD CONSTRAINT pengguna_koptumbuh_role_check
   CHECK (role IN ('OPERATOR','KETUA','BENDAHARA','PEMBINA','ADMIN','ANGGOTA'));
+
+-- Allow ANGGOTA without pengurus/karyawan refs (self-service members)
+ALTER TABLE koptumbuh.pengguna_koptumbuh DROP CONSTRAINT IF EXISTS ck_pengguna_reference;
+ALTER TABLE koptumbuh.pengguna_koptumbuh ADD CONSTRAINT ck_pengguna_reference
+  CHECK (
+    pengurus_ref IS NOT NULL
+    OR karyawan_ref IS NOT NULL
+    OR role IN ('PEMBINA', 'ADMIN', 'ANGGOTA')
+  );
 
 -- Subsidy columns on produk_koperasi
 ALTER TABLE koptumbuh.produk_koperasi ADD COLUMN IF NOT EXISTS is_subsidi BOOLEAN DEFAULT FALSE;
@@ -127,12 +138,12 @@ INSERT INTO rat_koperasi (
 -- BENDAHARA,PEMBINA,ADMIN. Add migration for ANGGOTA role.
 -- ============================================
 
-INSERT INTO pengguna_koptumbuh (koperasi_ref, pengurus_ref, nama, nomor_whatsapp, role, status_aktif)
+INSERT INTO pengguna_koptumbuh (koperasi_ref, pengurus_ref, karyawan_ref, nama, nomor_whatsapp, role, status_aktif)
 VALUES
-    ('KOP-JasaAI-A1B2C3D4E5F6', 'PENG-A1B2C3D4E5F6', 'Agus Wijaya', '628123456001', 'KETUA', TRUE),
-    ('KOP-JasaAI-A1B2C3D4E5F6', NULL, 'Budi Santoso', '628123456003', 'OPERATOR', TRUE),
-    ('KOP-JasaAI-A1B2C3D4E5F6', NULL, 'Ratna Dewi', '628123456002', 'BENDAHARA', TRUE),
-    ('KOP-JasaAI-A1B2C3D4E5F6', NULL, 'Pak Haji Ahmad', '628120000001', 'ANGGOTA', TRUE);
+    ('KOP-JasaAI-A1B2C3D4E5F6', 'PENG-A1B2C3D4E5F6', NULL, 'Agus Wijaya', '628123456001', 'KETUA', TRUE),
+    ('KOP-JasaAI-A1B2C3D4E5F6', NULL, 'KAR-C3D4E5F6A1B2', 'Budi Santoso', '628123456003', 'OPERATOR', TRUE),
+    ('KOP-JasaAI-A1B2C3D4E5F6', 'PENG-B2C3D4E5F6A1', NULL, 'Ratna Dewi', '628123456002', 'BENDAHARA', TRUE),
+    ('KOP-JasaAI-A1B2C3D4E5F6', NULL, NULL, 'Pak Haji Ahmad', '628120000001', 'ANGGOTA', TRUE);
 
 -- ============================================
 -- 4. PRODUCTS & INVENTORY
@@ -240,7 +251,32 @@ INSERT INTO transaksi_penjualan (
     ('TRX-D4E5F6A1B2C3', 'KOP-JasaAI-A1B2C3D4E5F6', 'Mbak Dewi',
      '2026-07-08 16:45:00+07', 196000, 'Paid', 'Cash'),
     ('TRX-E5F6A1B2C3D4', 'KOP-JasaAI-A1B2C3D4E5F6', 'Pelanggan Umum',
-     '2026-07-09 11:20:00+07', 52000, 'Paid', 'Cash');
+     '2026-07-09 11:20:00+07', 52000, 'Paid', 'Cash'),
+    -- Extra history for RFM tiers (DIAMOND / EMAS / PERAK)
+    ('TRX-F1A2B3C4D5E6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Pak Haji Ahmad',
+     '2026-06-12 09:00:00+07', 130000, 'Paid', 'Cash'),
+    ('TRX-F2A2B3C4D5E6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Pak Haji Ahmad',
+     '2026-06-20 11:00:00+07', 93000, 'Paid', 'Cash'),
+    ('TRX-F3A2B3C4D5E6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Pak Haji Ahmad',
+     '2026-06-28 15:00:00+07', 65000, 'Paid', 'Transfer'),
+    ('TRX-F4A2B3C4D5E6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Pak Haji Ahmad',
+     '2026-07-02 08:30:00+07', 158000, 'Paid', 'Cash'),
+    ('TRX-F5A2B3C4D5E6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Pak Haji Ahmad',
+     '2026-07-10 10:00:00+07', 92000, 'Paid', 'Cash'),
+    ('TRX-G1A2B3C4D5E6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Bu Siti Nurhaliza',
+     '2026-06-15 13:00:00+07', 65000, 'Paid', 'Cash'),
+    ('TRX-G2A2B3C4D5E6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Bu Siti Nurhaliza',
+     '2026-06-25 16:00:00+07', 140000, 'Paid', 'Cash'),
+    ('TRX-G3A2B3C4D5E6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Bu Siti Nurhaliza',
+     '2026-07-01 09:30:00+07', 79000, 'Paid', 'Transfer'),
+    ('TRX-G4A2B3C4D5E6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Bu Siti Nurhaliza',
+     '2026-07-09 17:00:00+07', 117000, 'Paid', 'Cash'),
+    ('TRX-H1A2B3C4D5E6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Mbak Dewi',
+     '2026-06-18 10:00:00+07', 65000, 'Paid', 'Cash'),
+    ('TRX-H2A2B3C4D5E6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Mbak Dewi',
+     '2026-07-04 12:00:00+07', 28000, 'Paid', 'Cash'),
+    ('TRX-I1A2B3C4D5E6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Mas Dimas',
+     '2026-05-10 10:00:00+07', 65000, 'Paid', 'Cash');
 
 -- Line items
 INSERT INTO barang_keluar_produk (
@@ -256,7 +292,29 @@ INSERT INTO barang_keluar_produk (
     ('TRX-D4E5F6A1B2C3', 'PROD-B2C3D4E5F6A1', 'KOP-JasaAI-A1B2C3D4E5F6', 'Minyak Goreng 2L', 3, 28000, 84000, 'Paid', '2026-07-08 16:45:00+07'),
     ('TRX-D4E5F6A1B2C3', 'PROD-A1B2C3D4E5F6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Beras Premium 5kg', 1, 65000, 65000, 'Paid', '2026-07-08 16:45:00+07'),
     ('TRX-D4E5F6A1B2C3', 'PROD-D4E5F6A1B2C3', 'KOP-JasaAI-A1B2C3D4E5F6', 'Telur Ayam 1kg', 1, 27000, 27000, 'Paid', '2026-07-08 16:45:00+07'),
-    ('TRX-E5F6A1B2C3D4', 'PROD-E5F6A1B2C3D4', 'KOP-JasaAI-A1B2C3D4E5F6', 'Mie Instan Dus', 1, 52000, 52000, 'Paid', '2026-07-09 11:20:00+07');
+    ('TRX-E5F6A1B2C3D4', 'PROD-E5F6A1B2C3D4', 'KOP-JasaAI-A1B2C3D4E5F6', 'Mie Instan Dus', 1, 52000, 52000, 'Paid', '2026-07-09 11:20:00+07'),
+    ('TRX-F1A2B3C4D5E6', 'PROD-A1B2C3D4E5F6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Beras Premium 5kg', 2, 65000, 130000, 'Paid', '2026-06-12 09:00:00+07'),
+    ('TRX-F2A2B3C4D5E6', 'PROD-B2C3D4E5F6A1', 'KOP-JasaAI-A1B2C3D4E5F6', 'Minyak Goreng 2L', 2, 28000, 56000, 'Paid', '2026-06-20 11:00:00+07'),
+    ('TRX-F2A2B3C4D5E6', 'PROD-C3D4E5F6A1B2', 'KOP-JasaAI-A1B2C3D4E5F6', 'Gula Pasir 1kg', 1, 14000, 14000, 'Paid', '2026-06-20 11:00:00+07'),
+    ('TRX-F2A2B3C4D5E6', 'PROD-D4E5F6A1B2C3', 'KOP-JasaAI-A1B2C3D4E5F6', 'Telur Ayam 1kg', 1, 27000, 27000, 'Paid', '2026-06-20 11:00:00+07'),
+    ('TRX-F3A2B3C4D5E6', 'PROD-A1B2C3D4E5F6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Beras Premium 5kg', 1, 65000, 65000, 'Paid', '2026-06-28 15:00:00+07'),
+    ('TRX-F4A2B3C4D5E6', 'PROD-A1B2C3D4E5F6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Beras Premium 5kg', 2, 65000, 130000, 'Paid', '2026-07-02 08:30:00+07'),
+    ('TRX-F4A2B3C4D5E6', 'PROD-B2C3D4E5F6A1', 'KOP-JasaAI-A1B2C3D4E5F6', 'Minyak Goreng 2L', 1, 28000, 28000, 'Paid', '2026-07-02 08:30:00+07'),
+    ('TRX-F5A2B3C4D5E6', 'PROD-E5F6A1B2C3D4', 'KOP-JasaAI-A1B2C3D4E5F6', 'Mie Instan Dus', 1, 52000, 52000, 'Paid', '2026-07-10 10:00:00+07'),
+    ('TRX-F5A2B3C4D5E6', 'PROD-C3D4E5F6A1B2', 'KOP-JasaAI-A1B2C3D4E5F6', 'Gula Pasir 1kg', 1, 14000, 14000, 'Paid', '2026-07-10 10:00:00+07'),
+    ('TRX-F5A2B3C4D5E6', 'PROD-D4E5F6A1B2C3', 'KOP-JasaAI-A1B2C3D4E5F6', 'Telur Ayam 1kg', 1, 27000, 27000, 'Paid', '2026-07-10 10:00:00+07'),
+    ('TRX-G1A2B3C4D5E6', 'PROD-A1B2C3D4E5F6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Beras Premium 5kg', 1, 65000, 65000, 'Paid', '2026-06-15 13:00:00+07'),
+    ('TRX-G2A2B3C4D5E6', 'PROD-A1B2C3D4E5F6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Beras Premium 5kg', 1, 65000, 65000, 'Paid', '2026-06-25 16:00:00+07'),
+    ('TRX-G2A2B3C4D5E6', 'PROD-B2C3D4E5F6A1', 'KOP-JasaAI-A1B2C3D4E5F6', 'Minyak Goreng 2L', 1, 28000, 28000, 'Paid', '2026-06-25 16:00:00+07'),
+    ('TRX-G2A2B3C4D5E6', 'PROD-E5F6A1B2C3D4', 'KOP-JasaAI-A1B2C3D4E5F6', 'Mie Instan Dus', 1, 52000, 52000, 'Paid', '2026-06-25 16:00:00+07'),
+    ('TRX-G3A2B3C4D5E6', 'PROD-B2C3D4E5F6A1', 'KOP-JasaAI-A1B2C3D4E5F6', 'Minyak Goreng 2L', 1, 28000, 28000, 'Paid', '2026-07-01 09:30:00+07'),
+    ('TRX-G3A2B3C4D5E6', 'PROD-D4E5F6A1B2C3', 'KOP-JasaAI-A1B2C3D4E5F6', 'Telur Ayam 1kg', 1, 27000, 27000, 'Paid', '2026-07-01 09:30:00+07'),
+    ('TRX-G3A2B3C4D5E6', 'PROD-C3D4E5F6A1B2', 'KOP-JasaAI-A1B2C3D4E5F6', 'Gula Pasir 1kg', 1, 14000, 14000, 'Paid', '2026-07-01 09:30:00+07'),
+    ('TRX-G4A2B3C4D5E6', 'PROD-A1B2C3D4E5F6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Beras Premium 5kg', 1, 65000, 65000, 'Paid', '2026-07-09 17:00:00+07'),
+    ('TRX-G4A2B3C4D5E6', 'PROD-E5F6A1B2C3D4', 'KOP-JasaAI-A1B2C3D4E5F6', 'Mie Instan Dus', 1, 52000, 52000, 'Paid', '2026-07-09 17:00:00+07'),
+    ('TRX-H1A2B3C4D5E6', 'PROD-A1B2C3D4E5F6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Beras Premium 5kg', 1, 65000, 65000, 'Paid', '2026-06-18 10:00:00+07'),
+    ('TRX-H2A2B3C4D5E6', 'PROD-B2C3D4E5F6A1', 'KOP-JasaAI-A1B2C3D4E5F6', 'Minyak Goreng 2L', 1, 28000, 28000, 'Paid', '2026-07-04 12:00:00+07'),
+    ('TRX-I1A2B3C4D5E6', 'PROD-A1B2C3D4E5F6', 'KOP-JasaAI-A1B2C3D4E5F6', 'Beras Premium 5kg', 1, 65000, 65000, 'Paid', '2026-05-10 10:00:00+07');
 
 -- Member-TX links
 INSERT INTO relasi_transaksi_pihak (transaksi_sample_id, anggota_ref, relationship_type, match_method)
@@ -264,7 +322,19 @@ VALUES
     ('TRX-A1B2C3D4E5F6', 'AGT-B2C3D4E5F6A1', 'MEMBER_CUSTOMER', 'auto'),
     ('TRX-B2C3D4E5F6A1', 'AGT-A1B2C3D4E5F6', 'MEMBER_CUSTOMER', 'auto'),
     ('TRX-C3D4E5F6A1B2', 'AGT-C3D4E5F6A1B2', 'MEMBER_CUSTOMER', 'auto'),
-    ('TRX-D4E5F6A1B2C3', 'AGT-D4E5F6A1B2C3', 'MEMBER_CUSTOMER', 'auto');
+    ('TRX-D4E5F6A1B2C3', 'AGT-D4E5F6A1B2C3', 'MEMBER_CUSTOMER', 'auto'),
+    ('TRX-F1A2B3C4D5E6', 'AGT-A1B2C3D4E5F6', 'MEMBER_CUSTOMER', 'auto'),
+    ('TRX-F2A2B3C4D5E6', 'AGT-A1B2C3D4E5F6', 'MEMBER_CUSTOMER', 'auto'),
+    ('TRX-F3A2B3C4D5E6', 'AGT-A1B2C3D4E5F6', 'MEMBER_CUSTOMER', 'auto'),
+    ('TRX-F4A2B3C4D5E6', 'AGT-A1B2C3D4E5F6', 'MEMBER_CUSTOMER', 'auto'),
+    ('TRX-F5A2B3C4D5E6', 'AGT-A1B2C3D4E5F6', 'MEMBER_CUSTOMER', 'auto'),
+    ('TRX-G1A2B3C4D5E6', 'AGT-B2C3D4E5F6A1', 'MEMBER_CUSTOMER', 'auto'),
+    ('TRX-G2A2B3C4D5E6', 'AGT-B2C3D4E5F6A1', 'MEMBER_CUSTOMER', 'auto'),
+    ('TRX-G3A2B3C4D5E6', 'AGT-B2C3D4E5F6A1', 'MEMBER_CUSTOMER', 'auto'),
+    ('TRX-G4A2B3C4D5E6', 'AGT-B2C3D4E5F6A1', 'MEMBER_CUSTOMER', 'auto'),
+    ('TRX-H1A2B3C4D5E6', 'AGT-D4E5F6A1B2C3', 'MEMBER_CUSTOMER', 'auto'),
+    ('TRX-H2A2B3C4D5E6', 'AGT-D4E5F6A1B2C3', 'MEMBER_CUSTOMER', 'auto'),
+    ('TRX-I1A2B3C4D5E6', 'AGT-C3D4E5F6A1B2', 'MEMBER_CUSTOMER', 'auto');
 
 -- ============================================
 -- 7. SUBSIDIES, KNOWLEDGE & STOCK UPDATE
@@ -281,9 +351,29 @@ VALUES ('KOP-JasaAI-A1B2C3D4E5F6',
     'Kirim pesan dengan format: [Nama Pelanggan] beli [Jumlah] [Nama Produk]. Contoh: Bu Siti beli 2 Beras Premium 5kg, bayar tunai.',
     'JasaAI Admin');
 
--- Update inventory to reflect demo sales
-UPDATE inventaris_produk SET stok = stok - 7 WHERE produk_sample_id = 'PROD-A1B2C3D4E5F6' AND koperasi_ref = 'KOP-JasaAI-A1B2C3D4E5F6';
-UPDATE inventaris_produk SET stok = stok - 4 WHERE produk_sample_id = 'PROD-B2C3D4E5F6A1' AND koperasi_ref = 'KOP-JasaAI-A1B2C3D4E5F6';
-UPDATE inventaris_produk SET stok = stok - 1 WHERE produk_sample_id = 'PROD-C3D4E5F6A1B2' AND koperasi_ref = 'KOP-JasaAI-A1B2C3D4E5F6';
-UPDATE inventaris_produk SET stok = stok - 3 WHERE produk_sample_id = 'PROD-D4E5F6A1B2C3' AND koperasi_ref = 'KOP-JasaAI-A1B2C3D4E5F6';
-UPDATE inventaris_produk SET stok = stok - 1 WHERE produk_sample_id = 'PROD-E5F6A1B2C3D4' AND koperasi_ref = 'KOP-JasaAI-A1B2C3D4E5F6';
+-- Seed recommendations (visible before Generate)
+INSERT INTO rekomendasi (
+    koperasi_ref, jenis, judul, isi_rekomendasi, alasan, produk_sample_id, priority, status
+) VALUES
+    ('KOP-JasaAI-A1B2C3D4E5F6', 'STOCKOUT_RISK',
+     'Stok Telur Ayam hampir habis',
+     'Stok Telur Ayam 1kg tersisa rendah. Segera restock dari pemasok sebelum weekend.',
+     'ADS tinggi + stok di bawah safety stock',
+     'PROD-D4E5F6A1B2C3', 'CRITICAL', 'NEW'),
+    ('KOP-JasaAI-A1B2C3D4E5F6', 'RESTOCK',
+     'Restock Beras Premium 5kg',
+     'Beras Premium adalah top seller. Rencana restock 40 unit dalam 3 hari (lead time pemasok).',
+     'Top product by volume + declining available stock',
+     'PROD-A1B2C3D4E5F6', 'HIGH', 'NEW'),
+    ('KOP-JasaAI-A1B2C3D4E5F6', 'SLOW_MOVING',
+     'Minyakita 1L bergerak lambat',
+     'Produk subsidi Minyakita jarang terjual 14 hari terakhir. Pertimbangkan bundling dengan beras.',
+     'Zero/low outbound vs inbound age',
+     'PROD-F6A1B2C3D4E5', 'MEDIUM', 'NEW');
+
+-- Update inventory to reflect demo sales (original + RFM enrichment)
+UPDATE inventaris_produk SET stok = GREATEST(stok - 16, 5) WHERE produk_sample_id = 'PROD-A1B2C3D4E5F6' AND koperasi_ref = 'KOP-JasaAI-A1B2C3D4E5F6';
+UPDATE inventaris_produk SET stok = GREATEST(stok - 10, 4) WHERE produk_sample_id = 'PROD-B2C3D4E5F6A1' AND koperasi_ref = 'KOP-JasaAI-A1B2C3D4E5F6';
+UPDATE inventaris_produk SET stok = GREATEST(stok - 5, 3) WHERE produk_sample_id = 'PROD-C3D4E5F6A1B2' AND koperasi_ref = 'KOP-JasaAI-A1B2C3D4E5F6';
+UPDATE inventaris_produk SET stok = GREATEST(stok - 7, 2) WHERE produk_sample_id = 'PROD-D4E5F6A1B2C3' AND koperasi_ref = 'KOP-JasaAI-A1B2C3D4E5F6';
+UPDATE inventaris_produk SET stok = GREATEST(stok - 4, 5) WHERE produk_sample_id = 'PROD-E5F6A1B2C3D4' AND koperasi_ref = 'KOP-JasaAI-A1B2C3D4E5F6';

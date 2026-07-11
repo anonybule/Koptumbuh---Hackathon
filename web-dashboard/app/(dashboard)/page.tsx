@@ -70,6 +70,9 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
           <p className="text-xs text-gray-400 mt-1">Setelah POS/WhatsApp YA — klik Refresh (atau kembali ke tab ini).</p>
+          <p className="inline-flex mt-2 text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-full px-2.5 py-1">
+            No AI Math — harga &amp; total selalu dari database
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Link

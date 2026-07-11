@@ -78,8 +78,19 @@ async def health():
         statuses["minio"] = "ok"
     except Exception as e:
         statuses["minio"] = f"error: {str(e)[:50]}"
+    # Evolution is optional (Path B POS works without it)
+    try:
+        import httpx
+        url = (settings.EVOLUTION_API_URL or "").rstrip("/") + "/"
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            resp = await client.get(url)
+        statuses["evolution"] = "ok" if resp.status_code < 500 else f"degraded: HTTP {resp.status_code}"
+    except Exception as e:
+        statuses["evolution"] = f"unavailable: {str(e)[:40]}"
+
+    core_ok = all(statuses.get(k) == "ok" for k in ("db", "redis", "minio"))
     return {
-        "status": "ok" if all(v == "ok" for v in statuses.values()) else "degraded",
+        "status": "ok" if core_ok else "degraded",
         "team": "JasaAI",
         "services": statuses,
     }

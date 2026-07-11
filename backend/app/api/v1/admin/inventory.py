@@ -34,7 +34,11 @@ async def list_inventory(
     ).scalar() or 0
     result = await db.execute(
         text(
-            f"SELECT i.produk_sample_id, i.nama_produk, i.stok, i.kode_barcode, i.lokasi_simpan, i.inventaris_ref "
+            f"SELECT i.produk_sample_id, i.nama_produk, i.stok, i.kode_barcode, i.lokasi_simpan, i.inventaris_ref, "
+            f"(SELECT bm.harga_jual FROM koptumbuh.barang_masuk_produk bm "
+            f" WHERE bm.produk_sample_id = i.produk_sample_id AND bm.koperasi_ref = i.koperasi_ref "
+            f"   AND bm.harga_jual IS NOT NULL AND bm.harga_jual > 0 "
+            f" ORDER BY bm.tanggal_masuk DESC NULLS LAST LIMIT 1) AS harga_jual "
             f"FROM koptumbuh.inventaris_produk i WHERE {clause} ORDER BY i.stok ASC OFFSET :off LIMIT :lim"
         ),
         params,
@@ -48,6 +52,7 @@ async def list_inventory(
                 "barcode": r[3],
                 "lokasi_simpan": r[4],
                 "inventaris_ref": r[5],
+                "harga_jual": float(r[6] or 0),
                 "low_stock": float(r[2] or 0) < 5,
             }
             for r in result.fetchall()

@@ -181,9 +181,8 @@ docker compose up -d --build
 # 3. Health
 curl -s http://localhost:8000/health
 
-# 4. Additive migrations (fresh volumes)
-# Git Bash / WSL:
-docker compose exec -T postgres psql -U dev_admin -d koptumbuh_dev < ../database/migrations.sql
+# 4. Fresh volumes auto-apply migrations via 03_migrations.sql (no manual step)
+#    Only re-run migrations.sql manually if upgrading an old volume.
 
 # 5. Web dashboard
 cd ../web-dashboard
