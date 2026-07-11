@@ -14,6 +14,7 @@ services:
       - pgdata_fresh:/var/lib/postgresql/data
       - ./database/koptumbuh_updated_minimal_data_model.sql:/docker-entrypoint-initdb.d/01_schema.sql
       - ./database/seed_demo.sql:/docker-entrypoint-initdb.d/02_seed.sql
+      - ./database/migrations.sql:/docker-entrypoint-initdb.d/03_migrations.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dev_admin -d koptumbuh_dev"]
       interval: 5s
