@@ -1,7 +1,7 @@
 #!/bin/bash
 # Demo readiness: health → login → POS sale → verify TX (no WhatsApp required)
 set -e
-BASE="${API_URL:-http://localhost:8000}"
+BASE="${API_URL:-http://localhost:8100}"
 API="$BASE/api/v1"
 PASS=0
 FAIL=0
@@ -73,6 +73,6 @@ fi
 
 echo ""
 echo "=== RESULTS: $PASS passed, $FAIL failed ==="
-echo "Next: open http://localhost:3000 → Refresh dashboard (login kop123)"
+echo "Next: open http://localhost:3000 (or :8101) → Dashboard (demo mode skips login)"
 echo "TX id: $TX"
 [ "$FAIL" -eq 0 ]

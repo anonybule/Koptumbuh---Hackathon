@@ -1,6 +1,6 @@
 #!/bin/bash
-# KopTumbuh API Test Collection — run against localhost:8000
-BASE="${API_URL:-http://localhost:8000}/api/v1"
+# KopTumbuh API Test Collection — run against localhost:8100 (compose host map)
+BASE="${API_URL:-http://localhost:8100}/api/v1"
 PASS=0
 FAIL=0
 
@@ -97,7 +97,7 @@ curl -sf -X POST "$BASE/admin/recommendations/generate" -H "Authorization: Beare
 check "admin export trigger" auth_post "$BASE/admin/export/simkopdes" '{}'
 
 echo "=== HEALTH ==="
-check "health" curl -sf "http://localhost:8000/health"
+check "health" curl -sf "http://localhost:8100/health"
 
 echo ""
 echo "=== RESULTS: $PASS passed, $FAIL failed ==="

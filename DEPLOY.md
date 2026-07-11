@@ -22,7 +22,7 @@ docker compose up -d --build
 Wait until healthy:
 
 ```bash
-curl -s http://localhost:8000/health
+curl -s http://localhost:8100/health
 # expect: "status":"ok" when db/redis/minio are ok
 # evolution may be "unavailable" — Path B (POS) still works
 ```
@@ -57,6 +57,12 @@ npm run dev
 ```
 
 Open http://localhost:3000  
+(or root `docker compose up` web → http://localhost:8101)
+
+For local `npm run dev`, ensure `web-dashboard/.env.local` exists:
+```bash
+cp web-dashboard/.env.local.example web-dashboard/.env.local
+```  
 Login: `628123456003` / `kop123`
 
 ## 3. Smoke tests (before you present)
@@ -85,7 +91,7 @@ docker compose up -d --build
 
 ## 4. WhatsApp (optional — Path A)
 
-1. Open Evolution (often http://localhost:8080)  
+1. Open Evolution (http://localhost:8082)  
 2. Create/pair instance with QR using API key from `.env` (`EVOLUTION_API_KEY`)  
 3. Point webhook to `http://host.docker.internal:8000/api/v1/webhooks/whatsapp` (or your LAN IP)  
 4. Send from paired phone as operator `628123456003` (must exist in seed)
@@ -109,16 +115,19 @@ bash backend/scripts/demo_ready.sh
 
 It logs in, posts a POS sale, and prints the new transaction id.
 
-## Services & ports
+## Services & ports (host → container)
 
-| Service | Port |
-|---------|------|
-| FastAPI | 8000 |
-| Web | 3000 |
-| Postgres | 5432 |
-| Redis | 6379 |
-| MinIO | 9000 / console 9001 |
-| Evolution | 8080 |
+| Service | Host port |
+|---------|-----------|
+| FastAPI | **8100** → 8000 |
+| Web (root compose) | **8101** → 3000 |
+| Web (`npm run dev`) | 3000 |
+| Postgres | **5433** → 5432 |
+| Redis | **6380** → 6379 |
+| MinIO | **9010** / console **9011** |
+| Evolution | **8082** → 8080 |
+
+Local Next proxy: copy `web-dashboard/.env.local.example` → `.env.local` (`API_INTERNAL_URL=http://localhost:8100`).
 
 ## Honest note for judges
 

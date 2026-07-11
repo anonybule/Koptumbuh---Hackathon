@@ -20,10 +20,12 @@ from app.api.v1.admin.ops import router as ops_router
 from app.api.v1.admin.network_supply import router as network_supply_router
 from app.api.v1.admin.shu import router as shu_router
 from app.api.v1.admin.analytics import router as analytics_router
+from app.api.v1.admin.review import router as review_router
 
 router = APIRouter()
 router.include_router(dashboard_router)
 router.include_router(analytics_router)
+router.include_router(review_router)
 router.include_router(inventory_router)
 router.include_router(suppliers_router)
 router.include_router(members_router)

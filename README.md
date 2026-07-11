@@ -54,7 +54,7 @@ KopTumbuh is a **three-surface system** on one API:
            \                      |                        /
             \                     |                       /
              v                    v                      v
-                    Backend API (FastAPI :8000)
+                    Backend API (FastAPI :8100 host / :8000 in Docker)
               WhatsApp pipeline · Gemini · Validation
               Celery workers · PostgreSQL · Redis · MinIO
 ```
@@ -178,20 +178,22 @@ cp .env.example .env
 # 2. Start stack (API + worker + beat + Postgres + Redis + MinIO + Evolution)
 docker compose up -d --build
 
-# 3. Health
-curl -s http://localhost:8000/health
+# 3. Health (host port 8100 → container 8000)
+curl -s http://localhost:8100/health
 
 # 4. Fresh volumes auto-apply migrations via 03_migrations.sql (no manual step)
 #    Only re-run migrations.sql manually if upgrading an old volume.
 
 # 5. Web dashboard
 cd ../web-dashboard
+cp .env.local.example .env.local   # API_INTERNAL_URL=http://localhost:8100
 npm install
 npm run dev
 # http://localhost:3000
+# Or full stack web: docker compose (repo root) → http://localhost:8101
 ```
 
-OpenAPI: http://localhost:8000/docs · Evolution: http://localhost:8080  
+OpenAPI: http://localhost:8100/docs · Evolution: http://localhost:8082  
 
 Full deploy notes: **[DEPLOY.md](DEPLOY.md)**
 

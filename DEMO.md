@@ -10,11 +10,11 @@ Credentials: `628123456003` / `kop123` · Coop `KOP-JasaAI-A1B2C3D4E5F6`
 
 ```bash
 cd backend && docker compose ps
-curl -s http://localhost:8000/health
+curl -s http://localhost:8100/health
 bash scripts/demo_ready.sh    # or: powershell scripts/demo_ready.ps1
 ```
 
-Web: http://localhost:3000 logged in. Keep **POS** and **Dashboard** tabs ready.
+Web: http://localhost:3000 (or :8101 via root compose). Demo mode skips login. Keep **POS** and **Dashboard** tabs ready.
 
 Talking point on every money screen: **No AI Math — harga & total dari database** (chip on Dashboard + POS; WhatsApp confirm footer).
 
@@ -58,13 +58,13 @@ Needs `GEMINI_API_KEY` + Celery worker running.
 
 ```bash
 # 1) Sale message
-curl -s -X POST http://localhost:8000/api/v1/webhooks/whatsapp \
+curl -s -X POST http://localhost:8100/api/v1/webhooks/whatsapp \
   -H "Content-Type: application/json" \
   -H "apikey: koptumbuh-evolution-key" \
   -d "{\"event\":\"messages.upsert\",\"data\":{\"key\":{\"id\":\"DEMO-$(date +%s)\",\"remoteJid\":\"628123456003@s.whatsapp.net\"},\"message\":{\"conversation\":\"Bu Siti beli 1 Beras Premium 5kg bayar tunai\",\"messageType\":\"conversation\"}}}"
 
 # Wait for WhatsApp confirmation (or check worker logs), then YA with a NEW id:
-curl -s -X POST http://localhost:8000/api/v1/webhooks/whatsapp \
+curl -s -X POST http://localhost:8100/api/v1/webhooks/whatsapp \
   -H "Content-Type: application/json" \
   -H "apikey: koptumbuh-evolution-key" \
   -d "{\"event\":\"messages.upsert\",\"data\":{\"key\":{\"id\":\"YA-$(date +%s)\",\"remoteJid\":\"628123456003@s.whatsapp.net\"},\"message\":{\"conversation\":\"YA\",\"messageType\":\"conversation\"}}}"

@@ -24,9 +24,16 @@ Village co-ops (180k+) still run on paper/basic POS → stockouts, weak margins,
 Login:     628123456003
 Password:  kop123
 Koperasi:  KOP-JasaAI-A1B2C3D4E5F6
-Dashboard: http://localhost:3000
-API docs:  http://localhost:8000/docs
+Dashboard: http://localhost:8101  (or npm run dev → :3000)
+API docs:  http://localhost:8100/docs
 ```
+
+## Ports (docker compose)
+| Service | URL |
+|---------|-----|
+| API | http://localhost:8100 |
+| Web (root compose) | http://localhost:8101 |
+| Evolution | http://localhost:8082 |
 
 ## 60-second demo (if WhatsApp down)
 **POS Kasir → Demo 1-klik → Dashboard Refresh**

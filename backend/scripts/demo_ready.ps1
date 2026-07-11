@@ -1,6 +1,6 @@
 # Demo readiness (Windows PowerShell) — Path B POS, no WhatsApp
 $ErrorActionPreference = "Stop"
-$Base = if ($env:API_URL) { $env:API_URL } else { "http://localhost:8000" }
+$Base = if ($env:API_URL) { $env:API_URL } else { "http://localhost:8100" }
 $Api = "$Base/api/v1"
 $Pass = 0
 $Fail = 0
@@ -65,6 +65,6 @@ if ($kpi.success) { Ok "dashboard KPI" } else { Bad "kpi" "success=false" }
 
 Write-Host ""
 Write-Host "=== RESULTS: $Pass passed, $Fail failed ==="
-Write-Host "Next: open http://localhost:3000 → Refresh dashboard (login kop123)"
+Write-Host "Next: open http://localhost:3000 (or :8101) → Dashboard (demo mode skips login)"
 Write-Host "TX id: $tx"
 if ($Fail -gt 0) { exit 1 }

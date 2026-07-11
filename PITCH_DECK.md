@@ -281,8 +281,8 @@ Phone / login: 628123456003
 Password:      kop123
 Koperasi:      KOP-JasaAI-A1B2C3D4E5F6
 
-API docs:      http://localhost:8000/docs
-Dashboard:     http://localhost:3000
+API docs:      http://localhost:8100/docs
+Dashboard:     http://localhost:8101  (or npm run dev → :3000)
 ```
 
 ### Happy path (≤5 min)
