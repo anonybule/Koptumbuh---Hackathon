@@ -11,7 +11,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - pgdata2:/var/lib/postgresql/data
+      - pgdata_fresh:/var/lib/postgresql/data
       - ./database/koptumbuh_updated_minimal_data_model.sql:/docker-entrypoint-initdb.d/01_schema.sql
       - ./database/seed_demo.sql:/docker-entrypoint-initdb.d/02_seed.sql
     healthcheck:
@@ -69,7 +69,7 @@ services:
     ports:
       - "8100:8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://dev_admin:${DB_PASSWORD:-devpassword}@76.13.22.127:5433/koptumbuh_dev
+      DATABASE_URL: postgresql+asyncpg://hackathon_participant_2026:%2AH4ck4thonK3men0P2026%40@34.101.155.200:5432/hackathon_2026
       REDIS_URL: redis://redis:6379/0
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minio_admin}
@@ -89,7 +89,7 @@ services:
       dockerfile: Dockerfile.worker
     container_name: koptumbuh-worker
     environment:
-      DATABASE_URL: postgresql+asyncpg://dev_admin:${DB_PASSWORD:-devpassword}@76.13.22.127:5433/koptumbuh_dev
+      DATABASE_URL: postgresql+asyncpg://hackathon_participant_2026:%2AH4ck4thonK3men0P2026%40@34.101.155.200:5432/hackathon_2026
       REDIS_URL: redis://redis:6379/0
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minio_admin}
@@ -109,7 +109,7 @@ services:
     container_name: koptumbuh-beat
     command: celery -A app.workers.celery_app beat --loglevel=info
     environment:
-      DATABASE_URL: postgresql+asyncpg://dev_admin:${DB_PASSWORD:-devpassword}@76.13.22.127:5433/koptumbuh_dev
+      DATABASE_URL: postgresql+asyncpg://hackathon_participant_2026:%2AH4ck4thonK3men0P2026%40@34.101.155.200:5432/hackathon_2026
       REDIS_URL: redis://redis:6379/0
       EVOLUTION_API_URL: http://evolution:8080
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-koptumbuh-evolution-key}
@@ -132,7 +132,7 @@ services:
       - api
 
 volumes:
-  pgdata2:
+  pgdata_fresh:
   minio_data:
   evolution_data:
 
