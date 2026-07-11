@@ -70,7 +70,7 @@ services:
     ports:
       - "8100:8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://hackathon_participant_2026:%2AH4ck4thonK3men0P2026%40@34.101.155.200:5432/hackathon_2026
+      DATABASE_URL: postgresql+asyncpg://dev_admin:devpassword@76.13.22.127:5434/koptumbuh_dev
       REDIS_URL: redis://redis:6379/0
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minio_admin}
@@ -90,7 +90,7 @@ services:
       dockerfile: Dockerfile.worker
     container_name: koptumbuh-worker
     environment:
-      DATABASE_URL: postgresql+asyncpg://hackathon_participant_2026:%2AH4ck4thonK3men0P2026%40@34.101.155.200:5432/hackathon_2026
+      DATABASE_URL: postgresql+asyncpg://dev_admin:devpassword@76.13.22.127:5434/koptumbuh_dev
       REDIS_URL: redis://redis:6379/0
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minio_admin}
@@ -110,7 +110,7 @@ services:
     container_name: koptumbuh-beat
     command: celery -A app.workers.celery_app beat --loglevel=info
     environment:
-      DATABASE_URL: postgresql+asyncpg://hackathon_participant_2026:%2AH4ck4thonK3men0P2026%40@34.101.155.200:5432/hackathon_2026
+      DATABASE_URL: postgresql+asyncpg://dev_admin:devpassword@76.13.22.127:5434/koptumbuh_dev
       REDIS_URL: redis://redis:6379/0
       EVOLUTION_API_URL: http://evolution:8080
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-koptumbuh-evolution-key}
@@ -147,11 +147,11 @@ services:
       - -c
       - |
         echo "Running DDL..."
-        PGPASSWORD=devpassword psql -h 76.13.22.127 -p 5433 -U dev_admin -d koptumbuh_dev -f /init/01_schema.sql
+        PGPASSWORD=devpassword psql -h 76.13.22.127 -p 5434 -U dev_admin -d koptumbuh_dev -f /init/01_schema.sql
         echo "Running seed..."
-        PGPASSWORD=devpassword psql -h 76.13.22.127 -p 5433 -U dev_admin -d koptumbuh_dev -f /init/02_seed.sql
+        PGPASSWORD=devpassword psql -h 76.13.22.127 -p 5434 -U dev_admin -d koptumbuh_dev -f /init/02_seed.sql
         echo "Running migrations..."
-        PGPASSWORD=devpassword psql -h 76.13.22.127 -p 5433 -U dev_admin -d koptumbuh_dev -f /init/03_migrations.sql
+        PGPASSWORD=devpassword psql -h 76.13.22.127 -p 5434 -U dev_admin -d koptumbuh_dev -f /init/03_migrations.sql
         echo "DB init complete"
     restart: "no"
 
