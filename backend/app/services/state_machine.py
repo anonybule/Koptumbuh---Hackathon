@@ -52,7 +52,7 @@ async def handle_confirmation_reply(pesan: PesanMasuk, db: AsyncSession):
                 redis_client.delete(f"session:{user.nomor_whatsapp}")
                 await whatsapp_service.send_message(
                     user.nomor_whatsapp,
-                    "✅ Penyesuaian stok berhasil diterapkan.",
+                    "✅ Penyesuaian stok berhasil diterapkan.\n_Harga & total dari DB (No AI Math)_",
                 )
                 return True
             await commit_transaction(parsing, pesan, user, db)
@@ -66,7 +66,9 @@ async def handle_confirmation_reply(pesan: PesanMasuk, db: AsyncSession):
         redis_client.delete(f"session:{user.nomor_whatsapp}")
         await whatsapp_service.send_message(
             user.nomor_whatsapp,
-            f"✅ Transaksi berhasil disimpan!\nTotal: Rp {parsing.extracted_payload.get('calculated_total', 0):,.0f}"
+            f"✅ Transaksi berhasil disimpan!\n"
+            f"Total: Rp {parsing.extracted_payload.get('calculated_total', 0):,.0f}\n"
+            f"_Harga & total dari DB (No AI Math)_"
         )
         return True
 

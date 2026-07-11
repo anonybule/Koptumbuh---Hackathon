@@ -16,6 +16,7 @@ class _ProdukListScreenState extends State<ProdukListScreen> {
   final _search = TextEditingController();
   List<Map<String, dynamic>> _items = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -24,17 +25,23 @@ class _ProdukListScreenState extends State<ProdukListScreen> {
   }
 
   Future<void> _load({String? q}) async {
-    setState(() => _loading = true);
+    setState(() { _loading = true; _error = null; });
     final res = await widget.api.listProducts(q: q);
     if (!mounted) return;
-    setState(() {
-      _items = res != null && res['success'] == true
-          ? List<Map<String, dynamic>>.from(
-              (res['data'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
-            )
-          : [];
-      _loading = false;
-    });
+    if (res != null && res['success'] == true) {
+      setState(() {
+        _items = List<Map<String, dynamic>>.from(
+          (res['data'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
+        );
+        _loading = false;
+      });
+    } else {
+      setState(() {
+        _items = [];
+        _loading = false;
+        _error = 'Gagal memuat produk. Periksa koneksi API.';
+      });
+    }
   }
 
   @override
@@ -82,8 +89,10 @@ class _ProdukListScreenState extends State<ProdukListScreen> {
             onRefresh: () => _load(q: _search.text.trim()),
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : _items.isEmpty
-                    ? ListView(children: const [EmptyState('Produk tidak ditemukan')])
+                : _error != null
+                    ? ListView(children: [EmptyState(_error!)])
+                    : _items.isEmpty
+                    ? ListView(children: const [EmptyState('Produk tidak ditemukan. Coba kata kunci lain atau cek seed inventaris.')])
                     : ListView.builder(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                         itemCount: _items.length,

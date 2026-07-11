@@ -1,4 +1,5 @@
 import re
+import logging
 from datetime import datetime
 from sqlalchemy import select
 from app.workers.celery_app import celery_app
@@ -9,6 +10,8 @@ from app.services.normalize import normalize_unit, normalize_payment
 from app.database import AsyncSessionLocal
 import redis as redis_lib
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 redis_client = redis_lib.Redis.from_url(settings.REDIS_URL, decode_responses=True)
 
@@ -63,8 +66,10 @@ async def _async_validate(parsing_id: str):
         result = await db.execute(select(ParsingPesan).where(ParsingPesan.parsing_id == parsing_id))
         parsing = result.scalar_one_or_none()
         if not parsing or parsing.status != "DRAFT":
+            logger.info("validate skip: parsing_id=%s status=%s", parsing_id, getattr(parsing, "status", None))
             return
 
+        logger.info("validate start: parsing_id=%s pesan_id=%s", parsing_id, parsing.pesan_id)
         payload = parsing.extracted_payload or {}
         errors = []
         resolved_items = []
@@ -72,6 +77,7 @@ async def _async_validate(parsing_id: str):
         pesan_result = await db.execute(select(PesanMasuk).where(PesanMasuk.pesan_id == parsing.pesan_id))
         pesan = pesan_result.scalar_one_or_none()
         if not pesan:
+            logger.warning("validate missing pesan: parsing_id=%s", parsing_id)
             return
         koperasi_ref = pesan.koperasi_ref
 
@@ -160,6 +166,15 @@ async def _async_validate(parsing_id: str):
         pesan.status = "PARSED" if parsing.status == "VALID" else "NEEDS_REVIEW"
         pesan.processed_at = datetime.utcnow()
         await db.commit()
+
+        logger.info(
+            "validate done: parsing_id=%s status=%s items=%s total=%s errors=%s",
+            parsing_id,
+            parsing.status,
+            len(resolved_items),
+            calculated_total,
+            len(errors),
+        )
 
         from app.workers.dispatcher import dispatch_confirmation
         dispatch_confirmation.delay(str(parsing.parsing_id))

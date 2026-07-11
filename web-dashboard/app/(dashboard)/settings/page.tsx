@@ -1,19 +1,41 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { apiClient, clearTokens } from '../../../lib/api';
+import { apiClient, clearTokens, getAccessToken } from '../../../lib/api';
 import { Card, LoadingState } from '../../../components/ui';
+
+function decodeJwtPayload(token: string | null): Record<string, unknown> | null {
+  if (!token) return null;
+  try {
+    const part = token.split('.')[1];
+    if (!part) return null;
+    const json = atob(part.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
 
 export default function SettingsPage() {
   const router = useRouter();
+  const claims = useMemo(() => decodeJwtPayload(getAccessToken()), []);
+
   const profile = useQuery({
     queryKey: ['settings-users'],
     queryFn: async () => (await apiClient<any[]>('/admin/users')).data || [],
     retry: false,
   });
 
-  const me = (profile.data || [])[0];
+  const sub = typeof claims?.sub === 'string' ? claims.sub : null;
+  const meFromList = (profile.data || []).find((u: any) => String(u.id || u.pengguna_id) === sub);
+  const nama = meFromList?.nama || meFromList?.name || 'Operator';
+  const role = (meFromList?.role as string) || (claims?.role as string) || 'OPERATOR';
+  const koperasi =
+    (meFromList?.koperasi_ref as string) ||
+    (claims?.koperasi_ref as string) ||
+    'KOP-JasaAI-A1B2C3D4E5F6';
 
   const handleLogout = () => {
     clearTokens();
@@ -27,9 +49,11 @@ export default function SettingsPage() {
         <div className="p-4 flex justify-between items-center">
           <div>
             <p className="font-medium">Profil</p>
-            {profile.isLoading ? <LoadingState /> : (
+            {profile.isLoading && !claims ? (
+              <LoadingState />
+            ) : (
               <p className="text-sm text-gray-400">
-                {me?.nama || me?.name || 'Operator'} • {me?.role || 'OPERATOR'}
+                {nama} • {role}
               </p>
             )}
           </div>
@@ -37,7 +61,7 @@ export default function SettingsPage() {
         <div className="p-4 flex justify-between items-center">
           <div>
             <p className="font-medium">Koperasi</p>
-            <p className="text-sm text-gray-400">{me?.koperasi_ref || 'KOP-JasaAI-A1B2C3D4E5F6'}</p>
+            <p className="text-sm text-gray-400">{koperasi}</p>
           </div>
         </div>
         <div className="p-4 flex justify-between items-center">

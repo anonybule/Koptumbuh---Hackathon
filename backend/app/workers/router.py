@@ -1,4 +1,5 @@
 import json, uuid, re
+import logging
 from datetime import datetime
 from sqlalchemy import select, or_
 from app.workers.celery_app import celery_app
@@ -7,6 +8,8 @@ from app.services.ai_service import parse_text_to_json, transcribe_audio, ocr_re
 from app.services.whatsapp_service import whatsapp_service
 from app.database import AsyncSessionLocal
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 RECEIPT_INTENTS = frozenset({"RECORD_RECEIPT", "RECORD_PURCHASE", "RECEIPT"})
 _WORD_RE = re.compile(r"[a-zA-Z0-9\u00C0-\u024F]{3,}")
@@ -37,11 +40,14 @@ async def _async_process(pesan_id: str):
         result = await db.execute(select(PesanMasuk).where(PesanMasuk.pesan_id == pesan_id))
         pesan = result.scalar_one_or_none()
         if not pesan:
+            logger.warning("process_message skip: pesan_id=%s not found", pesan_id)
             return
         # Skip terminal states; allow RECEIVED / FAILED / PROCESSING (retry)
         if pesan.status in ("CONFIRMED", "PARSED", "NEEDS_REVIEW", "CANCELLED"):
+            logger.info("process_message skip: pesan_id=%s status=%s", pesan_id, pesan.status)
             return
 
+        logger.info("process_message start: pesan_id=%s input_type=%s", pesan_id, pesan.input_type)
         pesan.status = "PROCESSING"
         await db.commit()
 
@@ -65,18 +71,22 @@ async def _async_process(pesan_id: str):
                     if score < settings.MIN_PHOTO_CONFIDENCE:
                         pesan.status = "NEEDS_REVIEW"
                         await db.commit()
+                        logger.info("process_message NEEDS_REVIEW: pesan_id=%s score=%s", pesan_id, score)
                         return
         except Exception:
             pesan.status = "FAILED"
             await db.commit()
+            logger.exception("process_message extract failed: pesan_id=%s", pesan_id)
             raise
 
         if not extracted:
             pesan.status = "FAILED"
             await db.commit()
+            logger.warning("process_message empty extract: pesan_id=%s", pesan_id)
             return
 
         intent = (extracted.get("intent") or "UNRESOLVED").upper().strip()
+        logger.info("process_message intent: pesan_id=%s intent=%s", pesan_id, intent)
         # Normalize aliases
         if intent == "RECEIPT":
             intent = "RECORD_RECEIPT"

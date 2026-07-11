@@ -221,7 +221,7 @@ class _BerandaScreenState extends State<BerandaScreen> {
           ]),
           const SizedBox(height: 8),
           if (_recent.isEmpty)
-            const Text('Belum ada transaksi hari ini.', style: TextStyle(color: kMuted, fontSize: 12))
+            const Text('Belum ada transaksi hari ini. Tarik untuk refresh atau catat via POS web.', style: TextStyle(color: kMuted, fontSize: 12))
           else
             ..._recent.map((t) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),

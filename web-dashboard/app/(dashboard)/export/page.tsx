@@ -13,6 +13,7 @@ export default function ExportPage() {
   const [periodStart, setPeriodStart] = useState('');
   const [periodEnd, setPeriodEnd] = useState('');
   const [msg, setMsg] = useState('');
+  const [lastId, setLastId] = useState<string | null>(null);
 
   const history = useQuery({
     queryKey: ['export-history'],
@@ -27,18 +28,36 @@ export default function ExportPage() {
       return apiClient('/admin/export/simkopdes', { method: 'POST', body: JSON.stringify(body) });
     },
     onSuccess: (res) => {
-      const d = res.data as { record_count?: number; format?: string } | undefined;
-      setMsg(`Ekspor berhasil: ${d?.record_count ?? 0} baris (${d?.format})`);
+      const d = res.data as {
+        record_count?: number;
+        format?: string;
+        ekspor_id?: string;
+        storage?: string;
+      } | undefined;
+      setLastId(d?.ekspor_id || null);
+      const storageNote =
+        d?.storage === 'local_fallback'
+          ? ' (disimpan lokal — MinIO fallback)'
+          : d?.storage
+            ? ` (storage: ${d.storage})`
+            : '';
+      setMsg(
+        `Ekspor berhasil: ${d?.record_count ?? 0} baris (${d?.format})${storageNote}` +
+          (d?.ekspor_id ? ` · id ${d.ekspor_id}` : ''),
+      );
       qc.invalidateQueries({ queryKey: ['export-history'] });
     },
-    onError: (e: any) => setMsg(e.message || 'Gagal mengekspor'),
+    onError: (e: any) => {
+      setLastId(null);
+      setMsg(e.message || 'Gagal mengekspor');
+    },
   });
 
   async function handleDownload(id: string) {
     try {
-      setMsg('Mengunduh...');
+      setMsg(`Mengunduh ${id}…`);
       await downloadExport(id);
-      setMsg('Unduhan dimulai');
+      setMsg(`Unduhan dimulai · ${id}`);
     } catch (e: any) {
       setMsg(e.message || 'Gagal mengunduh');
     }
@@ -84,21 +103,38 @@ export default function ExportPage() {
           <div className="flex items-end">
             <button
               disabled={trigger.isPending}
-              onClick={() => trigger.mutate()}
-              className="w-full bg-primary text-white py-2 rounded-lg text-sm disabled:opacity-50"
+              onClick={() => {
+                if (trigger.isPending) return;
+                setMsg('');
+                trigger.mutate();
+              }}
+              className="w-full bg-primary text-white py-2 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {trigger.isPending ? 'Memproses...' : 'Ekspor Sekarang'}
             </button>
           </div>
         </div>
-        {msg && <p className="text-sm text-gray-500 mt-3">{msg}</p>}
+        {msg && (
+          <p className={`text-sm mt-3 ${trigger.isError ? 'text-red-600' : 'text-gray-600'}`}>
+            {msg}
+          </p>
+        )}
+        {lastId && !trigger.isError && (
+          <button
+            type="button"
+            onClick={() => handleDownload(lastId)}
+            className="mt-2 inline-flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            <Download size={14} /> Unduh ekspor terakhir
+          </button>
+        )}
       </Card>
 
       <Card className="overflow-hidden">
         <div className="p-4 border-b"><h2 className="text-lg font-semibold">Riwayat Ekspor</h2></div>
         {history.isError ? <ErrorState onRetry={() => history.refetch()} /> :
          history.isLoading ? <LoadingState /> :
-         (history.data || []).length === 0 ? <EmptyState message="Belum ada riwayat ekspor." /> : (
+         (history.data || []).length === 0 ? <EmptyState message="Belum ada riwayat ekspor. Klik Ekspor Sekarang untuk membuat file SIMKOPDES." /> : (
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>

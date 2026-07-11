@@ -1,4 +1,5 @@
 import json
+import logging
 from sqlalchemy import select
 from app.workers.celery_app import celery_app
 from app.models.koptumbuh import ParsingPesan, PesanMasuk, PenggunaKoptumbuh, NotifikasiLog
@@ -6,6 +7,8 @@ from app.services.whatsapp_service import whatsapp_service
 from app.database import AsyncSessionLocal
 import redis as redis_lib
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 redis_client = redis_lib.Redis.from_url(settings.REDIS_URL, decode_responses=True)
 
@@ -46,11 +49,18 @@ async def _async_dispatch(parsing_id: str):
                 }),
             )
             message = _format_confirmation(parsing)
+            logger.info("dispatch confirm: parsing_id=%s intent=%s to=%s", parsing_id, intent, user.nomor_whatsapp)
         else:
             message = _format_error(parsing)
+            logger.info("dispatch error: parsing_id=%s to=%s", parsing_id, user.nomor_whatsapp)
 
         # Send via Evolution API
         result = await whatsapp_service.send_message(user.nomor_whatsapp, message)
+        logger.info(
+            "dispatch sent: parsing_id=%s success=%s",
+            parsing_id,
+            result.get("success"),
+        )
 
         # Log notification
         notif = NotifikasiLog(
@@ -78,7 +88,8 @@ def _format_confirmation(parsing: ParsingPesan) -> str:
         return (
             "📋 *Konfirmasi Penyesuaian Stok*\n\n"
             + "\n".join(lines)
-            + "\n\nBalas:\n"
+            + "\n\n_Harga & total dari DB (No AI Math)_\n\n"
+            "Balas:\n"
             "✅ *YA* — Terapkan\n"
             "✏️ *UBAH* — Koreksi & kirim ulang\n"
             "❌ *BATAL* — Batalkan"
@@ -102,7 +113,8 @@ def _format_confirmation(parsing: ParsingPesan) -> str:
         f"Bayar: {payment}\n\n"
         + "\n".join(lines) +
         f"\n{'─' * 30}\n"
-        f"*Total: Rp {payload.get('calculated_total', 0):,.0f}*{due}\n\n"
+        f"*Total: Rp {payload.get('calculated_total', 0):,.0f}*{due}\n"
+        f"_Harga & total dari DB (No AI Math)_\n\n"
         f"Balas:\n"
         f"✅ *YA* — Simpan\n"
         f"✏️ *UBAH* — Koreksi & kirim ulang\n"

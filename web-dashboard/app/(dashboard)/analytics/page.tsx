@@ -60,7 +60,11 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <Card className="p-6">
           <h2 className="text-lg font-semibold mb-4">Omzet Harian</h2>
-          {sales.isLoading ? <LoadingState /> : (
+          {sales.isLoading ? <LoadingState /> : salesChart.length === 0 ? (
+            <p className="text-sm text-gray-400 py-8 text-center">
+              Belum ada omzet. Jalankan POS Demo 1-klik atau pastikan seed transaksi terpasang.
+            </p>
+          ) : (
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={salesChart}>
@@ -215,7 +219,7 @@ export default function AnalyticsPage() {
                   </tr>
                 ))}
                 {(segments.data || []).length === 0 && (
-                  <tr><td colSpan={3} className="p-6 text-center text-gray-400">Belum ada segmentasi.</td></tr>
+                  <tr><td colSpan={3} className="p-6 text-center text-gray-400">Belum ada segmentasi. Pastikan migrations + seed RFM terpasang, lalu refresh.</td></tr>
                 )}
               </tbody>
             </table>
@@ -243,7 +247,7 @@ export default function AnalyticsPage() {
                 </tr>
               ))}
               {(prices.data || []).length === 0 && (
-                <tr><td colSpan={4} className="p-6 text-center text-gray-400">Belum ada data harga pasar.</td></tr>
+                <tr><td colSpan={4} className="p-6 text-center text-gray-400">Belum ada data harga pasar. Seed `harga_pasar` atau jalankan price scraper job.</td></tr>
               )}
             </tbody>
           </table>

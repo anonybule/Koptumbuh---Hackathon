@@ -58,6 +58,7 @@ async def export_simkopdes(body: dict | None = None, user: dict = Depends(requir
             "file_url": result["file_url"],
             "status": result["status"],
             "filename": result["filename"],
+            "storage": result.get("storage", "minio"),
         }
     )
 

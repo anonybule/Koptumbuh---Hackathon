@@ -16,6 +16,8 @@ bash scripts/demo_ready.sh    # or: powershell scripts/demo_ready.ps1
 
 Web: http://localhost:3000 logged in. Keep **POS** and **Dashboard** tabs ready.
 
+Talking point on every money screen: **No AI Math — harga & total dari database** (chip on Dashboard + POS; WhatsApp confirm footer).
+
 ---
 
 ## Path A — Live WhatsApp (best story)
@@ -37,7 +39,7 @@ If no confirmation in ~15s → **switch to Path B immediately**. Don’t debug E
 | # | Say | Do |
 |---|-----|-----|
 | 1 | “Same ledger without WhatsApp — POS fallback.” | Open **/pos** |
-| 2 | “One click demo sale.” | Click **Demo 1-klik** |
+| 2 | “One click demo sale — prices from DB.” | Click **Demo 1-klik** (lihat harga unit di daftar produk) |
 | 3 | “Stock decremented, TX stored.” | Click link to **Dashboard** → Refresh |
 | 4 | “SIMKOPDES export ready.” | Optional **/export** |
 

@@ -174,6 +174,7 @@ async def generate_simkopdes_export(
                 "file_url": file_url,
                 "status": status,
                 "filename": filename,
+                "storage": "minio" if file_url and not str(file_url).startswith("local://") else "local_fallback",
                 "content": content,
                 "content_type": content_type,
             }

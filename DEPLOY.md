@@ -23,10 +23,17 @@ Wait until healthy:
 
 ```bash
 curl -s http://localhost:8000/health
-# expect: "status":"ok" or "degraded" with db/redis ok
+# expect: "status":"ok" when db/redis/minio are ok
+# evolution may be "unavailable" — Path B (POS) still works
 ```
 
-Apply additive migrations (views, loans, etc.) if this is a fresh volume:
+Fresh volumes auto-load schema + seed + migrations via Docker init:
+
+- `01_schema.sql` → canonical model  
+- `02_seed.sql` → demo coop / users / products / RFM history / rekomendasi  
+- `03_migrations.sql` → views, loans, `harga_pasar` (+ demo market prices)
+
+Manual re-apply is only needed if you upgraded an **existing** volume that was created before this layout:
 
 ```bash
 # Git Bash / WSL / Linux
@@ -38,6 +45,8 @@ PowerShell:
 ```powershell
 Get-Content ..\database\migrations.sql -Raw | docker compose exec -T postgres psql -U dev_admin -d koptumbuh_dev
 ```
+
+WhatsApp gateway uses `evoapicloud/evolution-api:v2.2.3`. The API **does not** wait for Evolution to be healthy — POS demo never blocks on WA.
 
 ## 2. Web dashboard
 

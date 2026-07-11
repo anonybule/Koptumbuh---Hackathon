@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,6 +10,52 @@ import { Card, ErrorState, LoadingState, Badge, EmptyState } from '../../../../c
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
+
+const SERIES = {
+  masuk: { key: 'masuk', label: 'Masuk', color: '#a0ba3b' },
+  keluar: { key: 'keluar', label: 'Keluar', color: '#065366' },
+  adjust: { key: 'adjust', label: 'Adjust', color: '#d97706' },
+} as const;
+
+function formatAxisDate(value: string) {
+  if (!value || value.length < 10) return value;
+  const d = new Date(`${value.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return value.slice(5);
+  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+}
+
+function MovementTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ dataKey?: string; value?: number; color?: string; name?: string }>;
+  label?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  const total = payload.reduce((s, p) => s + (Number(p.value) || 0), 0);
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm min-w-[160px]">
+      <p className="text-xs font-semibold text-gray-800 mb-2">{formatAxisDate(String(label || ''))}</p>
+      <div className="space-y-1">
+        {payload.map((p) => (
+          <div key={String(p.dataKey)} className="flex items-center justify-between gap-4 text-xs">
+            <span className="flex items-center gap-1.5 text-gray-600">
+              <span className="inline-block h-2 w-2 rounded-sm" style={{ background: p.color }} />
+              {p.name}
+            </span>
+            <span className="font-semibold tabular-nums text-gray-900">{Number(p.value || 0).toLocaleString('id-ID')}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 pt-2 border-t border-gray-100 flex justify-between text-xs">
+        <span className="text-gray-500">Total qty</span>
+        <span className="font-semibold tabular-nums text-gray-900">{total.toLocaleString('id-ID')}</span>
+      </div>
+    </div>
+  );
+}
 
 interface Detail {
   id: string;
@@ -71,18 +117,36 @@ export default function InventoryDetailPage() {
     onError: (e: any) => setMsg(e.message || 'Gagal menyesuaikan stok'),
   });
 
+  const chartData = useMemo(() => {
+    const byDate = new Map<string, { date: string; masuk: number; keluar: number; adjust: number }>();
+    for (const c of detail.data?.chart || []) {
+      const date = (c.date || '').slice(0, 10);
+      if (!date) continue;
+      if (!byDate.has(date)) byDate.set(date, { date, masuk: 0, keluar: 0, adjust: 0 });
+      const row = byDate.get(date)!;
+      const qty = Math.abs(Number(c.qty) || 0);
+      if (c.type === 'MASUK') row.masuk += qty;
+      else if (c.type === 'KELUAR') row.keluar += qty;
+      else if (c.type === 'ADJUST') row.adjust += qty;
+    }
+    return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+  }, [detail.data?.chart]);
+
+  const chartTotals = useMemo(() => {
+    return chartData.reduce(
+      (acc, row) => ({
+        masuk: acc.masuk + row.masuk,
+        keluar: acc.keluar + row.keluar,
+        adjust: acc.adjust + row.adjust,
+      }),
+      { masuk: 0, keluar: 0, adjust: 0 },
+    );
+  }, [chartData]);
+
   if (detail.isError) return <ErrorState onRetry={() => detail.refetch()} />;
   if (detail.isLoading || !detail.data) return <LoadingState />;
 
   const d = detail.data;
-  const chartData = [...(d.chart || [])]
-    .reverse()
-    .map((c) => ({
-      date: (c.date || '').slice(0, 10),
-      masuk: c.type === 'MASUK' ? c.qty : 0,
-      keluar: c.type === 'KELUAR' ? Math.abs(c.qty) : 0,
-      adjust: c.type === 'ADJUST' ? c.qty : 0,
-    }));
 
   return (
     <div>
@@ -116,21 +180,90 @@ export default function InventoryDetailPage() {
       </div>
 
       <Card className="p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Riwayat Pergerakan</h2>
+        <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800">Riwayat Pergerakan</h2>
+            <p className="text-xs text-gray-500 mt-1">Qty harian · Masuk / Keluar / Adjust (agregat per tanggal)</p>
+          </div>
+          {chartData.length > 0 && (
+            <div className="flex flex-wrap gap-4 text-xs">
+              {(Object.keys(SERIES) as Array<keyof typeof SERIES>).map((k) => (
+                <div key={k} className="text-right">
+                  <p className="text-gray-400 uppercase tracking-wide">{SERIES[k].label}</p>
+                  <p className="font-semibold tabular-nums text-gray-800" style={{ color: SERIES[k].color }}>
+                    {chartTotals[k].toLocaleString('id-ID')}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         {chartData.length === 0 ? (
           <EmptyState message="Belum ada pergerakan stok." />
         ) : (
-          <div className="h-64">
+          <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="masuk" fill="#a0ba3b" name="Masuk" stackId="a" />
-                <Bar dataKey="keluar" fill="#065366" name="Keluar" stackId="a" />
-                <Bar dataKey="adjust" fill="#f59e0b" name="Adjust" stackId="a" />
+              <BarChart
+                data={chartData}
+                margin={{ top: 8, right: 8, left: 0, bottom: 4 }}
+                barCategoryGap="28%"
+                barGap={4}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e8eef0" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={formatAxisDate}
+                  tick={{ fontSize: 11, fill: '#6b7280' }}
+                  axisLine={{ stroke: '#e5e7eb' }}
+                  tickLine={false}
+                  dy={6}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: '#6b7280' }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={40}
+                  allowDecimals={false}
+                  label={{
+                    value: 'Qty',
+                    angle: -90,
+                    position: 'insideLeft',
+                    offset: 8,
+                    style: { fill: '#9ca3af', fontSize: 11 },
+                  }}
+                />
+                <Tooltip
+                  cursor={{ fill: 'rgba(6, 83, 102, 0.06)' }}
+                  content={<MovementTooltip />}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  height={32}
+                  iconType="square"
+                  iconSize={10}
+                  wrapperStyle={{ fontSize: 12, color: '#4b5563', paddingTop: 8 }}
+                />
+                <Bar
+                  dataKey="masuk"
+                  name={SERIES.masuk.label}
+                  fill={SERIES.masuk.color}
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={36}
+                />
+                <Bar
+                  dataKey="keluar"
+                  name={SERIES.keluar.label}
+                  fill={SERIES.keluar.color}
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={36}
+                />
+                <Bar
+                  dataKey="adjust"
+                  name={SERIES.adjust.label}
+                  fill={SERIES.adjust.color}
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={36}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>

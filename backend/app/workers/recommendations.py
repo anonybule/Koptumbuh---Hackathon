@@ -1,9 +1,12 @@
 from datetime import datetime, timedelta
+import logging
 from sqlalchemy import select, func
 from app.workers.celery_app import celery_app
 from app.models.koptumbuh import Rekomendasi, PemasokKoptumbuh
 from app.models.products import ProdukKoperasi, InventarisProduk, BarangKeluarProduk
 from app.database import AsyncSessionLocal
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_LEAD_TIME = 3
 BUFFER_DAYS = 2
@@ -23,6 +26,7 @@ def generate_all_recommendations(koperasi_ref: str = None):
 
 
 async def _generate(koperasi_ref: str):
+    logger.info("recommendations generate start: koperasi_ref=%s", koperasi_ref)
     async with AsyncSessionLocal() as db:
         recent = await db.execute(
             select(Rekomendasi.produk_sample_id, Rekomendasi.jenis).where(
@@ -32,6 +36,7 @@ async def _generate(koperasi_ref: str):
             )
         )
         existing = {(r[0], r[1]) for r in recent.fetchall()}
+        before = len(existing)
 
         supplier = (
             await db.execute(
@@ -177,6 +182,11 @@ async def _generate(koperasi_ref: str):
                     existing.add((p.produk_sample_id, "SLOW_MOVING"))
 
         await db.commit()
+        logger.info(
+            "recommendations generate done: koperasi_ref=%s new_pairs=%s",
+            koperasi_ref,
+            max(0, len(existing) - before),
+        )
 
 
 @celery_app.task

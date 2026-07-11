@@ -14,6 +14,7 @@ class _RekomendasiScreenState extends State<RekomendasiScreen> {
   List<Map<String, dynamic>> _items = [];
   bool _loading = true;
   String? _filter;
+  String? _error;
 
   @override
   void initState() {
@@ -22,17 +23,23 @@ class _RekomendasiScreenState extends State<RekomendasiScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() { _loading = true; _error = null; });
     final res = await widget.api.listRecommendations(status: _filter);
     if (!mounted) return;
-    setState(() {
-      _items = res != null && res['success'] == true
-          ? List<Map<String, dynamic>>.from(
-              (res['data'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
-            )
-          : [];
-      _loading = false;
-    });
+    if (res != null && res['success'] == true) {
+      setState(() {
+        _items = List<Map<String, dynamic>>.from(
+          (res['data'] as List? ?? []).map((e) => Map<String, dynamic>.from(e as Map)),
+        );
+        _loading = false;
+      });
+    } else {
+      setState(() {
+        _items = [];
+        _loading = false;
+        _error = 'Gagal memuat rekomendasi. Periksa koneksi API.';
+      });
+    }
   }
 
   Future<void> _patch(String id, String status) async {
@@ -69,8 +76,10 @@ class _RekomendasiScreenState extends State<RekomendasiScreen> {
             onRefresh: _load,
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : _items.isEmpty
-                    ? ListView(children: const [EmptyState('Belum ada rekomendasi')])
+                : _error != null
+                    ? ListView(children: [EmptyState(_error!)])
+                    : _items.isEmpty
+                    ? ListView(children: const [EmptyState('Belum ada rekomendasi. Generate dari web dashboard atau tunggu Celery beat.')])
                     : ListView.builder(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                         itemCount: _items.length,
